@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Qadam",
+    "slug": "qadam-campus-navigation",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E3A8A"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.qadam.campusnavigation",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Qadam needs access to your location to provide navigation assistance.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Qadam needs access to your location to provide real-time navigation."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1E3A8A"
+      },
+      "package": "com.qadam.campusnavigation",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Qadam to use your location for navigation."
+        }
+      ],
+      "expo-asset",
+      "expo-secure-store"
+    ]
+  }
+}

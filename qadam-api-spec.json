@@ -1,0 +1,1945 @@
+{
+  "info": {
+    "title": "Qadam",
+    "description": "REST API specification for tje qadam. all protected endpoints MUST require a Bearer token in the Authorization header. All responses are wrapped in { data, success, message? }.",
+    "auth": {
+      "type": "Bearer Token",
+      "header": "Authorization: Bearer <token>",
+      "note": "Obtain token via POST /auth/login or POST /auth/register"
+    },
+    "commonResponses": {
+      "401": { "success": false, "message": "Unauthorized" },
+      "403": { "success": false, "message": "Forbidden" },
+      "404": { "success": false, "message": "Not found" },
+      "500": { "success": false, "message": "Internal server error" }
+    }
+  },
+
+  // Backend dev look дурыстап каждую please <3
+  "endpoints": {
+    "auth": {
+      "basePrefix": "/auth",
+
+      "login": {
+        "method": "POST",
+        "path": "/auth/login",
+        "description": "Login with email and password. Returns access token + refresh token.",
+        "auth": false,
+        "requestBody": {
+          "email": "aiym.student@nu.edu.kz",
+          "password": "SecurePass123!"
+        },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "refreshToken": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4...",
+            "expiresIn": 3600,
+            "user": {
+              "id": "user-001",
+              "email": "aiym.student@nu.edu.kz",
+              "firstName": "Aiym",
+              "lastName": "Abay",
+              "studentId": "202012345",
+              "avatar": "https://i.pravatar.cc/150?img=5",
+              "createdAt": "2020-08-15T00:00:00Z"
+            }
+          }
+        }
+      },
+
+      "register": {
+        "method": "POST",
+        "path": "/auth/register",
+        "description": "Register a new student account. studentId must be a valid NU student ID.",
+        "auth": false,
+        "requestBody": {
+          "email": "newstudent@nu.edu.kz",
+          "password": "SecurePass123!",
+          "firstName": "Aiym",
+          "lastName": "Abay",
+          "studentId": "202012345"
+        },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "refreshToken": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4...",
+            "expiresIn": 3600,
+            "user": {
+              "id": "user-002",
+              "email": "newstudent@nu.edu.kz",
+              "firstName": "Aiym",
+              "lastName": "Abay",
+              "studentId": "202012345",
+              "createdAt": "2026-04-09T10:00:00Z"
+            }
+          }
+        }
+      },
+
+      "logout": {
+        "method": "POST",
+        "path": "/auth/logout",
+        "description": "Invalidate the current access + refresh token pair.",
+        "auth": true,
+        "requestBody": {
+          "refreshToken": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4..."
+        },
+        "successResponse": {
+          "success": true,
+          "data": null
+        }
+      },
+
+      "refreshToken": {
+        "method": "POST",
+        "path": "/auth/refresh",
+        "description": "Exchange a refresh token for a new access token.",
+        "auth": false,
+        "requestBody": {
+          "refreshToken": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4..."
+        },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "expiresIn": 3600
+          }
+        }
+      },
+
+      "getProfile": {
+        "method": "GET",
+        "path": "/auth/profile",
+        "description": "Get the currently authenticated user's profile.",
+        "auth": true,
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "user-001",
+            "email": "aiym.student@nu.edu.kz",
+            "firstName": "Aiym",
+            "lastName": "Abay",
+            "studentId": "202012345",
+            "avatar": "https://i.pravatar.cc/150?img=5",
+            "createdAt": "2020-08-15T00:00:00Z"
+          }
+        }
+      },
+
+      "updateProfile": {
+        "method": "PATCH",
+        "path": "/auth/profile",
+        "description": "Update editable profile fields. studentId and email domain are read-only.",
+        "auth": true,
+        "requestBody": {
+          "firstName": "Aiym",
+          "lastName": "Abay",
+          "email": "aiym.student@nu.edu.kz"
+        },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "user-001",
+            "email": "aiym.student@nu.edu.kz",
+            "firstName": "Aiym",
+            "lastName": "Abay",
+            "studentId": "202012345",
+            "avatar": "https://i.pravatar.cc/150?img=5",
+            "createdAt": "2020-08-15T00:00:00Z"
+          }
+        }
+      },
+
+      "forgotPassword": {
+        "method": "POST",
+        "path": "/auth/forgot-password",
+        "description": "Send a password reset link to the user's email.",
+        "auth": false,
+        "requestBody": {
+          "email": "aiym.student@nu.edu.kz"
+        },
+        "successResponse": {
+          "success": true,
+          "data": null,
+          "message": "Reset link sent to email."
+        }
+      }
+    },
+
+    "maps": {
+      "basePrefix": "/maps",
+
+      "getBuildings": {
+        "method": "GET",
+        "path": "/maps/buildings",
+        "description": "Get all campus buildings with coordinates and accessibility info.",
+        "auth": true,
+        "queryParams": {},
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "bldg-001",
+              "name": "Block 1 - Sciences",
+              "shortName": "Block 1",
+              "description": "Main science building with laboratories and lecture halls",
+              "latitude": 51.0906,
+              "longitude": 71.3989,
+              "floors": 4,
+              "hasElevator": true,
+              "hasRamp": true,
+              "category": "academic",
+              "imageUrl": null
+            },
+            {
+              "id": "bldg-002",
+              "name": "Block 2 - Engineering",
+              "shortName": "Block 2",
+              "description": "Engineering and technology building",
+              "latitude": 51.0912,
+              "longitude": 71.3995,
+              "floors": 4,
+              "hasElevator": true,
+              "hasRamp": true,
+              "category": "academic",
+              "imageUrl": null
+            },
+            {
+              "id": "bldg-003",
+              "name": "Block 3 - Business School",
+              "shortName": "Block 3",
+              "description": "Graduate School of Business",
+              "latitude": 51.0898,
+              "longitude": 71.3982,
+              "floors": 3,
+              "hasElevator": true,
+              "hasRamp": true,
+              "category": "academic",
+              "imageUrl": null
+            },
+            {
+              "id": "bldg-004",
+              "name": "Library",
+              "shortName": "Library",
+              "description": "Main university library with study spaces",
+              "latitude": 51.0904,
+              "longitude": 71.4001,
+              "floors": 3,
+              "hasElevator": true,
+              "hasRamp": true,
+              "category": "library",
+              "imageUrl": null
+            },
+            {
+              "id": "bldg-005",
+              "name": "Student Center",
+              "shortName": "Student Center",
+              "description": "Student services, cafeterias, and recreation",
+              "latitude": 51.091,
+              "longitude": 71.4008,
+              "floors": 2,
+              "hasElevator": true,
+              "hasRamp": true,
+              "category": "dining",
+              "imageUrl": null
+            },
+            {
+              "id": "bldg-006",
+              "name": "Dormitory A",
+              "shortName": "Dorm A",
+              "description": "Student residential building",
+              "latitude": 51.092,
+              "longitude": 71.4015,
+              "floors": 8,
+              "hasElevator": true,
+              "hasRamp": true,
+              "category": "residential",
+              "imageUrl": null
+            },
+            {
+              "id": "bldg-007",
+              "name": "Sports Complex",
+              "shortName": "Sports",
+              "description": "Gymnasium, pool, and sports facilities",
+              "latitude": 51.0895,
+              "longitude": 71.402,
+              "floors": 2,
+              "hasElevator": false,
+              "hasRamp": true,
+              "category": "sports",
+              "imageUrl": null
+            },
+            {
+              "id": "bldg-008",
+              "name": "Administration Building",
+              "shortName": "Admin",
+              "description": "University administration offices",
+              "latitude": 51.09,
+              "longitude": 71.3975,
+              "floors": 3,
+              "hasElevator": true,
+              "hasRamp": true,
+              "category": "admin",
+              "imageUrl": null
+            }
+          ]
+        }
+      },
+
+      "getBuilding": {
+        "method": "GET",
+        "path": "/maps/buildings/:id",
+        "description": "Get a single building by ID.",
+        "auth": true,
+        "pathParams": { "id": "bldg-004" },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "bldg-004",
+            "name": "Library",
+            "shortName": "Library",
+            "description": "Main university library with study spaces",
+            "latitude": 51.0904,
+            "longitude": 71.4001,
+            "floors": 3,
+            "hasElevator": true,
+            "hasRamp": true,
+            "category": "library",
+            "imageUrl": null
+          }
+        }
+      },
+
+      "getRoomsByBuilding": {
+        "method": "GET",
+        "path": "/maps/buildings/:id/rooms",
+        "description": "Get all rooms inside a building.",
+        "auth": true,
+        "pathParams": { "id": "bldg-004" },
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "room-008",
+              "buildingId": "bldg-004",
+              "name": "Study Hall A",
+              "floor": 1,
+              "type": "study_room",
+              "capacity": 40,
+              "accessible": true
+            },
+            {
+              "id": "room-009",
+              "buildingId": "bldg-004",
+              "name": "Study Hall B",
+              "floor": 2,
+              "type": "study_room",
+              "capacity": 30,
+              "accessible": true
+            },
+            {
+              "id": "room-010",
+              "buildingId": "bldg-004",
+              "name": "Group Study 1",
+              "floor": 2,
+              "type": "study_room",
+              "capacity": 8,
+              "accessible": true
+            }
+          ]
+        }
+      },
+
+      "search": {
+        "method": "GET",
+        "path": "/maps/search",
+        "description": "Search buildings and rooms by name or description.",
+        "auth": true,
+        "queryParams": { "q": "library" },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "buildings": [
+              {
+                "id": "bldg-004",
+                "name": "Library",
+                "shortName": "Library",
+                "description": "Main university library with study spaces",
+                "latitude": 51.0904,
+                "longitude": 71.4001,
+                "floors": 3,
+                "hasElevator": true,
+                "hasRamp": true,
+                "category": "library"
+              }
+            ],
+            "rooms": [
+              {
+                "id": "room-008",
+                "buildingId": "bldg-004",
+                "name": "Study Hall A",
+                "floor": 1,
+                "type": "study_room",
+                "capacity": 40,
+                "accessible": true
+              }
+            ]
+          }
+        }
+      },
+
+      "getNearby": {
+        "method": "GET",
+        "path": "/maps/nearby",
+        "description": "Get buildings within a given radius (meters) of a GPS coordinate.",
+        "auth": true,
+        "queryParams": {
+          "lat": 51.0906,
+          "lng": 71.3989,
+          "radius": 500
+        },
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "bldg-001",
+              "name": "Block 1 - Sciences",
+              "shortName": "Block 1",
+              "latitude": 51.0906,
+              "longitude": 71.3989,
+              "distanceMeters": 0,
+              "category": "academic"
+            },
+            {
+              "id": "bldg-002",
+              "name": "Block 2 - Engineering",
+              "shortName": "Block 2",
+              "latitude": 51.0912,
+              "longitude": 71.3995,
+              "distanceMeters": 87,
+              "category": "academic"
+            }
+          ]
+        }
+      }
+    },
+
+    "routing": {
+      "basePrefix": "/routing",
+
+      "calculateRoute": {
+        "method": "POST",
+        "path": "/routing/calculate",
+        "description": "Calculate a walking route between two GPS points on campus. preference controls route type: shortest = fewest meters, accessible = ramps + elevators only, least_crowded = avoids busy areas.",
+        "auth": true,
+        "requestBody": {
+          "startLat": 51.0906,
+          "startLng": 71.3989,
+          "endLat": 51.0904,
+          "endLng": 71.4001,
+          "preference": "accessible"
+        },
+        "preferenceValues": ["shortest", "accessible", "least_crowded"],
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "route-abc123",
+            "startLocation": {
+              "latitude": 51.0906,
+              "longitude": 71.3989,
+              "name": "Block 1 - Sciences"
+            },
+            "endLocation": {
+              "latitude": 51.0904,
+              "longitude": 71.4001,
+              "name": "Library"
+            },
+            "distance": 185,
+            "duration": 3,
+            "isAccessible": true,
+            "crowdLevel": "low",
+            "waypoints": [
+              { "latitude": 51.0906, "longitude": 71.3989 },
+              { "latitude": 51.0905, "longitude": 71.3993 },
+              { "latitude": 51.0904, "longitude": 71.4001 }
+            ],
+            "instructions": [
+              "Head east along the main walkway",
+              "Turn right at the fountain",
+              "Library entrance is on your left"
+            ]
+          }
+        }
+      },
+
+      "getSavedRoutes": {
+        "method": "GET",
+        "path": "/routing/saved",
+        "description": "Get all routes saved by the authenticated user.",
+        "auth": true,
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "route-abc123",
+              "startLocation": {
+                "latitude": 51.0906,
+                "longitude": 71.3989,
+                "name": "Block 1 - Sciences"
+              },
+              "endLocation": {
+                "latitude": 51.0904,
+                "longitude": 71.4001,
+                "name": "Library"
+              },
+              "distance": 185,
+              "duration": 3,
+              "isAccessible": true,
+              "crowdLevel": "low",
+              "waypoints": [],
+              "instructions": []
+            }
+          ]
+        }
+      },
+
+      "saveRoute": {
+        "method": "POST",
+        "path": "/routing/saved",
+        "description": "Save a previously calculated route for quick access.",
+        "auth": true,
+        "requestBody": {
+          "routeId": "route-abc123"
+        },
+        "successResponse": {
+          "success": true,
+          "data": null
+        }
+      },
+
+      "reroute": {
+        "method": "POST",
+        "path": "/routing/reroute",
+        "description": "Recalculate an active route from the user's current GPS position.",
+        "auth": true,
+        "requestBody": {
+          "routeId": "route-abc123",
+          "currentLat": 51.0907,
+          "currentLng": 71.3991
+        },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "route-xyz789",
+            "startLocation": {
+              "latitude": 51.0907,
+              "longitude": 71.3991,
+              "name": "Current Location"
+            },
+            "endLocation": {
+              "latitude": 51.0904,
+              "longitude": 71.4001,
+              "name": "Library"
+            },
+            "distance": 140,
+            "duration": 2,
+            "isAccessible": true,
+            "crowdLevel": "low",
+            "waypoints": [
+              { "latitude": 51.0907, "longitude": 71.3991 },
+              { "latitude": 51.0904, "longitude": 71.4001 }
+            ],
+            "instructions": [
+              "Continue east on the main path",
+              "Library is directly ahead"
+            ]
+          }
+        }
+      }
+    },
+
+    "events": {
+      "basePrefix": "/events",
+
+      "getEvents": {
+        "method": "GET",
+        "path": "/events",
+        "description": "Get all campus events. Filter by category and/or date range.",
+        "auth": true,
+        "queryParams": {
+          "category": "academic",
+          "startDate": "2026-04-01",
+          "endDate": "2026-04-30",
+          "_note": "All query params are optional"
+        },
+        "categoryValues": [
+          "academic",
+          "social",
+          "sports",
+          "cultural",
+          "career",
+          "other"
+        ],
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "evt-001",
+              "title": "Spring Career Fair 2026",
+              "description": "Annual career fair featuring top employers from Kazakhstan and international companies.",
+              "location": "Student Center, Main Hall",
+              "buildingId": "bldg-005",
+              "startDate": "2026-04-15T10:00:00Z",
+              "endDate": "2026-04-15T17:00:00Z",
+              "category": "career",
+              "organizer": "Career Center",
+              "isRegistrationRequired": true,
+              "registrationUrl": "https://nu.edu.kz/career-fair",
+              "imageUrl": null
+            },
+            {
+              "id": "evt-002",
+              "title": "AI & Machine Learning Workshop",
+              "description": "Hands-on workshop on the latest AI technologies and their applications.",
+              "location": "Block 2, Room 210",
+              "buildingId": "bldg-002",
+              "startDate": "2026-04-10T14:00:00Z",
+              "endDate": "2026-04-10T17:00:00Z",
+              "category": "academic",
+              "organizer": "Computer Science Department",
+              "isRegistrationRequired": true,
+              "registrationUrl": null,
+              "imageUrl": null
+            },
+            {
+              "id": "evt-003",
+              "title": "Nauryz Celebration",
+              "description": "Traditional Kazakh New Year celebration with music, food, and cultural performances.",
+              "location": "Campus Main Square",
+              "buildingId": null,
+              "startDate": "2026-03-22T12:00:00Z",
+              "endDate": "2026-03-22T20:00:00Z",
+              "category": "cultural",
+              "organizer": "Student Government",
+              "isRegistrationRequired": false,
+              "registrationUrl": null,
+              "imageUrl": null
+            },
+            {
+              "id": "evt-004",
+              "title": "Basketball Tournament",
+              "description": "Inter-department basketball competition. Come support your team!",
+              "location": "Sports Complex, Main Gym",
+              "buildingId": "bldg-007",
+              "startDate": "2026-04-05T18:00:00Z",
+              "endDate": "2026-04-05T21:00:00Z",
+              "category": "sports",
+              "organizer": "Sports Club",
+              "isRegistrationRequired": false,
+              "registrationUrl": null,
+              "imageUrl": null
+            },
+            {
+              "id": "evt-005",
+              "title": "Guest Lecture: Future of Renewable Energy",
+              "description": "Distinguished lecture by Dr. Sarah Chen on sustainable energy solutions.",
+              "location": "Block 3, Auditorium",
+              "buildingId": "bldg-003",
+              "startDate": "2026-04-08T15:00:00Z",
+              "endDate": "2026-04-08T17:00:00Z",
+              "category": "academic",
+              "organizer": "School of Engineering",
+              "isRegistrationRequired": false,
+              "registrationUrl": null,
+              "imageUrl": null
+            },
+            {
+              "id": "evt-006",
+              "title": "Movie Night: Interstellar",
+              "description": "Free outdoor movie screening. Bring your blankets!",
+              "location": "Campus Amphitheater",
+              "buildingId": null,
+              "startDate": "2026-04-12T20:00:00Z",
+              "endDate": "2026-04-12T23:00:00Z",
+              "category": "social",
+              "organizer": "Film Club",
+              "isRegistrationRequired": false,
+              "registrationUrl": null,
+              "imageUrl": null
+            }
+          ]
+        }
+      },
+
+      "getEvent": {
+        "method": "GET",
+        "path": "/events/:id",
+        "description": "Get a single event by ID.",
+        "auth": true,
+        "pathParams": { "id": "evt-001" },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "evt-001",
+            "title": "Spring Career Fair 2026",
+            "description": "Annual career fair featuring top employers from Kazakhstan and international companies.",
+            "location": "Student Center, Main Hall",
+            "buildingId": "bldg-005",
+            "startDate": "2026-04-15T10:00:00Z",
+            "endDate": "2026-04-15T17:00:00Z",
+            "category": "career",
+            "organizer": "Career Center",
+            "isRegistrationRequired": true,
+            "registrationUrl": "https://nu.edu.kz/career-fair",
+            "imageUrl": null
+          }
+        }
+      },
+
+      "registerForEvent": {
+        "method": "POST",
+        "path": "/events/:id/register",
+        "description": "Register the authenticated user for an event. Only valid when isRegistrationRequired = true.",
+        "auth": true,
+        "pathParams": { "id": "evt-001" },
+        "requestBody": null,
+        "successResponse": {
+          "success": true,
+          "data": {
+            "registrationId": "reg-abc123",
+            "eventId": "evt-001",
+            "userId": "user-001",
+            "registeredAt": "2026-04-09T10:00:00Z"
+          }
+        }
+      }
+    },
+
+    "discounts": {
+      "basePrefix": "/discounts",
+
+      "getDiscounts": {
+        "method": "GET",
+        "path": "/discounts",
+        "description": "Get all student discounts. Filter by category.",
+        "auth": true,
+        "queryParams": {
+          "category": "food",
+          "_note": "Optional. Omit to get all categories."
+        },
+        "categoryValues": [
+          "food",
+          "entertainment",
+          "shopping",
+          "services",
+          "travel",
+          "other"
+        ],
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "disc-001",
+              "vendorName": "Starbucks",
+              "vendorLogo": null,
+              "title": "15% Off All Beverages",
+              "description": "Show your student ID to get 15% off any drink at Starbucks campus location.",
+              "discountPercentage": 15,
+              "category": "food",
+              "validUntil": "2026-12-31",
+              "code": null,
+              "terms": "Valid only at campus location. Cannot be combined with other offers.",
+              "isVerified": true
+            },
+            {
+              "id": "disc-002",
+              "vendorName": "Cinema City",
+              "vendorLogo": null,
+              "title": "Student Movie Tickets - 50% Off",
+              "description": "Half price movie tickets for students on weekdays.",
+              "discountPercentage": 50,
+              "category": "entertainment",
+              "validUntil": "2026-06-30",
+              "code": "STUDENT50",
+              "terms": "Valid Monday-Thursday. Not valid on holidays or special screenings.",
+              "isVerified": true
+            },
+            {
+              "id": "disc-003",
+              "vendorName": "TechZone",
+              "vendorLogo": null,
+              "title": "10% Off Electronics",
+              "description": "Student discount on laptops, tablets, and accessories.",
+              "discountPercentage": 10,
+              "category": "shopping",
+              "validUntil": "2026-08-31",
+              "code": "NUSTUDENT10",
+              "terms": "Valid with student ID. Some exclusions apply.",
+              "isVerified": true
+            },
+            {
+              "id": "disc-004",
+              "vendorName": "Fit Life Gym",
+              "vendorLogo": null,
+              "title": "Student Membership - 30% Off",
+              "description": "Discounted monthly gym membership for NU students.",
+              "discountPercentage": 30,
+              "category": "services",
+              "validUntil": "2026-12-31",
+              "code": null,
+              "terms": "Valid student ID required. 6-month minimum commitment.",
+              "isVerified": true
+            },
+            {
+              "id": "disc-005",
+              "vendorName": "Pizza House",
+              "vendorLogo": null,
+              "title": "20% Off Large Pizzas",
+              "description": "Student special on all large pizzas.",
+              "discountPercentage": 20,
+              "category": "food",
+              "validUntil": "2026-05-31",
+              "code": "NUPIZZA20",
+              "terms": "Delivery and takeout only. Valid after 6 PM.",
+              "isVerified": true
+            },
+            {
+              "id": "disc-006",
+              "vendorName": "Kazakh Railways",
+              "vendorLogo": null,
+              "title": "Student Travel Discount - 25% Off",
+              "description": "Discounted train tickets for students traveling within Kazakhstan.",
+              "discountPercentage": 25,
+              "category": "travel",
+              "validUntil": "2026-12-31",
+              "code": null,
+              "terms": "Valid with student ID. Economy class only.",
+              "isVerified": true
+            },
+            {
+              "id": "disc-007",
+              "vendorName": "Campus Cafe",
+              "vendorLogo": null,
+              "title": "Free Coffee Upgrade",
+              "description": "Get a free size upgrade on any coffee drink.",
+              "discountPercentage": 0,
+              "category": "food",
+              "validUntil": "2026-04-30",
+              "code": null,
+              "terms": "Show Qadam app for discount.",
+              "isVerified": true
+            }
+          ]
+        }
+      },
+
+      "getDiscount": {
+        "method": "GET",
+        "path": "/discounts/:id",
+        "description": "Get a single discount by ID.",
+        "auth": true,
+        "pathParams": { "id": "disc-001" },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "disc-001",
+            "vendorName": "Starbucks",
+            "vendorLogo": null,
+            "title": "15% Off All Beverages",
+            "description": "Show your student ID to get 15% off any drink at Starbucks campus location.",
+            "discountPercentage": 15,
+            "category": "food",
+            "validUntil": "2026-12-31",
+            "code": null,
+            "terms": "Valid only at campus location. Cannot be combined with other offers.",
+            "isVerified": true
+          }
+        }
+      },
+
+      "verifyEligibility": {
+        "method": "POST",
+        "path": "/discounts/:id/verify",
+        "description": "Check if a student is eligible for a discount (e.g. active enrollment, specific year).",
+        "auth": true,
+        "pathParams": { "id": "disc-001" },
+        "requestBody": {
+          "studentId": "202012345"
+        },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "eligible": true,
+            "reason": null
+          }
+        }
+      }
+    },
+
+    "reviews": {
+      "basePrefix": "/reviews",
+
+      "getReviews": {
+        "method": "GET",
+        "path": "/reviews",
+        "description": "Get reviews. Filter by targetId and/or targetType.",
+        "auth": true,
+        "queryParams": {
+          "targetId": "bldg-004",
+          "targetType": "building",
+          "_note": "Both params are optional. targetType values: building, room, cafe, service"
+        },
+        "targetTypeValues": ["building", "room", "cafe", "service"],
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "rev-001",
+              "userId": "user-002",
+              "userName": "Amir K.",
+              "userAvatar": null,
+              "targetId": "bldg-004",
+              "targetType": "building",
+              "targetName": "Library",
+              "rating": 5,
+              "comment": "Great study environment! The 3rd floor is perfect for quiet studying. Plenty of outlets and natural light.",
+              "sentiment": "positive",
+              "helpful": 24,
+              "createdAt": "2026-03-28T14:30:00Z"
+            },
+            {
+              "id": "rev-002",
+              "userId": "user-003",
+              "userName": "Dana S.",
+              "userAvatar": null,
+              "targetId": "bldg-005",
+              "targetType": "cafe",
+              "targetName": "Student Center Cafe",
+              "rating": 4,
+              "comment": "Good food options and reasonable prices. Can get crowded during lunch hours though.",
+              "sentiment": "positive",
+              "helpful": 15,
+              "createdAt": "2026-03-25T12:15:00Z"
+            },
+            {
+              "id": "rev-003",
+              "userId": "user-004",
+              "userName": "Bekzat T.",
+              "userAvatar": null,
+              "targetId": "room-010",
+              "targetType": "room",
+              "targetName": "Group Study Room 1",
+              "rating": 3,
+              "comment": "Room is nice but booking system is confusing. Wish it was easier to reserve.",
+              "sentiment": "neutral",
+              "helpful": 8,
+              "createdAt": "2026-03-20T16:45:00Z"
+            },
+            {
+              "id": "rev-004",
+              "userId": "user-005",
+              "userName": "Gulnara M.",
+              "userAvatar": null,
+              "targetId": "bldg-007",
+              "targetType": "building",
+              "targetName": "Sports Complex",
+              "rating": 5,
+              "comment": "Excellent facilities! The swimming pool is well maintained and the gym has modern equipment.",
+              "sentiment": "positive",
+              "helpful": 32,
+              "createdAt": "2026-03-18T09:00:00Z"
+            },
+            {
+              "id": "rev-005",
+              "userId": "user-006",
+              "userName": "Marat A.",
+              "userAvatar": null,
+              "targetId": "bldg-001",
+              "targetType": "building",
+              "targetName": "Block 1 - Sciences",
+              "rating": 4,
+              "comment": "Labs are well-equipped. Sometimes elevators are slow during class transitions.",
+              "sentiment": "positive",
+              "helpful": 11,
+              "createdAt": "2026-03-15T11:30:00Z"
+            }
+          ]
+        }
+      },
+
+      "createReview": {
+        "method": "POST",
+        "path": "/reviews",
+        "description": "Create a new review. The backend should auto-calculate sentiment from rating (>=4 = positive, 3 = neutral, <=2 = negative) or accept it from client.",
+        "auth": true,
+        "requestBody": {
+          "targetId": "bldg-004",
+          "targetType": "building",
+          "targetName": "Library",
+          "rating": 5,
+          "comment": "Amazing place to study, highly recommend the 3rd floor."
+        },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "rev-006",
+            "userId": "user-001",
+            "userName": "Aiym A.",
+            "userAvatar": null,
+            "targetId": "bldg-004",
+            "targetType": "building",
+            "targetName": "Library",
+            "rating": 5,
+            "comment": "Amazing place to study, highly recommend the 3rd floor.",
+            "sentiment": "positive",
+            "helpful": 0,
+            "createdAt": "2026-04-09T10:00:00Z"
+          }
+        }
+      },
+
+      "markHelpful": {
+        "method": "POST",
+        "path": "/reviews/:id/helpful",
+        "description": "Increment the helpful count on a review. Each user can mark helpful once per review.",
+        "auth": true,
+        "pathParams": { "id": "rev-001" },
+        "requestBody": null,
+        "successResponse": {
+          "success": true,
+          "data": { "helpful": 25 }
+        }
+      },
+
+      "reportReview": {
+        "method": "POST",
+        "path": "/reviews/:id/report",
+        "description": "Report a review for inappropriate content.",
+        "auth": true,
+        "pathParams": { "id": "rev-001" },
+        "requestBody": {
+          "reason": "Inappropriate language"
+        },
+        "successResponse": {
+          "success": true,
+          "data": null
+        }
+      }
+    },
+
+    "academic": {
+      "basePrefix": "/academic",
+
+      "getCourses": {
+        "method": "GET",
+        "path": "/academic/courses",
+        "description": "Get the authenticated student's courses. Filter by semester.",
+        "auth": true,
+        "queryParams": {
+          "semester": "Spring 2026",
+          "_note": "Optional. Example values: 'Spring 2026', 'Fall 2025'"
+        },
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "course-001",
+              "code": "CSCI 408",
+              "name": "Senior Project I",
+              "credits": 6,
+              "grade": "A",
+              "gradePoints": 4.0,
+              "semester": "Fall 2025",
+              "instructor": "Dr. Askar Boranbayev",
+              "schedule": [
+                {
+                  "day": "monday",
+                  "startTime": "10:00",
+                  "endTime": "11:30",
+                  "room": "210",
+                  "buildingId": "bldg-002"
+                },
+                {
+                  "day": "wednesday",
+                  "startTime": "10:00",
+                  "endTime": "11:30",
+                  "room": "210",
+                  "buildingId": "bldg-002"
+                }
+              ]
+            },
+            {
+              "id": "course-002",
+              "code": "CSCI 390",
+              "name": "Machine Learning",
+              "credits": 6,
+              "grade": "A-",
+              "gradePoints": 3.67,
+              "semester": "Fall 2025",
+              "instructor": "Dr. Elena Kim",
+              "schedule": [
+                {
+                  "day": "tuesday",
+                  "startTime": "14:00",
+                  "endTime": "15:30",
+                  "room": "301",
+                  "buildingId": "bldg-001"
+                },
+                {
+                  "day": "thursday",
+                  "startTime": "14:00",
+                  "endTime": "15:30",
+                  "room": "301",
+                  "buildingId": "bldg-001"
+                }
+              ]
+            },
+            {
+              "id": "course-003",
+              "code": "CSCI 361",
+              "name": "Software Engineering",
+              "credits": 6,
+              "grade": null,
+              "gradePoints": null,
+              "semester": "Spring 2026",
+              "instructor": "Prof. Nurlan Omarov",
+              "schedule": [
+                {
+                  "day": "monday",
+                  "startTime": "14:00",
+                  "endTime": "15:30",
+                  "room": "105",
+                  "buildingId": "bldg-002"
+                },
+                {
+                  "day": "wednesday",
+                  "startTime": "14:00",
+                  "endTime": "15:30",
+                  "room": "105",
+                  "buildingId": "bldg-002"
+                }
+              ]
+            },
+            {
+              "id": "course-004",
+              "code": "MATH 273",
+              "name": "Linear Algebra",
+              "credits": 6,
+              "grade": "B+",
+              "gradePoints": 3.33,
+              "semester": "Fall 2025",
+              "instructor": "Dr. Samat Yergali",
+              "schedule": [
+                {
+                  "day": "monday",
+                  "startTime": "09:00",
+                  "endTime": "10:30",
+                  "room": "101",
+                  "buildingId": "bldg-001"
+                },
+                {
+                  "day": "friday",
+                  "startTime": "09:00",
+                  "endTime": "10:30",
+                  "room": "101",
+                  "buildingId": "bldg-001"
+                }
+              ]
+            },
+            {
+              "id": "course-005",
+              "code": "CSCI 409",
+              "name": "Senior Project II",
+              "credits": 6,
+              "grade": null,
+              "gradePoints": null,
+              "semester": "Spring 2026",
+              "instructor": "Dr. Askar Boranbayev",
+              "schedule": [
+                {
+                  "day": "tuesday",
+                  "startTime": "10:00",
+                  "endTime": "11:30",
+                  "room": "210",
+                  "buildingId": "bldg-002"
+                },
+                {
+                  "day": "thursday",
+                  "startTime": "10:00",
+                  "endTime": "11:30",
+                  "room": "210",
+                  "buildingId": "bldg-002"
+                }
+              ]
+            }
+          ]
+        }
+      },
+
+      "getAcademicPlan": {
+        "method": "GET",
+        "path": "/academic/plan",
+        "description": "Get the authenticated student's academic plan (GPA, credits, standing, graduation info).",
+        "auth": true,
+        "successResponse": {
+          "success": true,
+          "data": {
+            "totalCreditsRequired": 240,
+            "creditsCompleted": 198,
+            "creditsInProgress": 18,
+            "gpa": 3.65,
+            "standing": "dean_list",
+            "expectedGraduation": "May 2026",
+            "major": "Computer Science",
+            "minor": "Data Science"
+          }
+        },
+        "standingValues": ["good", "probation", "dean_list"]
+      },
+
+      "getSchedule": {
+        "method": "GET",
+        "path": "/academic/schedule",
+        "description": "Get the student's class schedule. Pass a date to get classes for that specific day.",
+        "auth": true,
+        "queryParams": {
+          "date": "2026-04-09",
+          "_note": "Optional. ISO date string YYYY-MM-DD. Omit to get full schedule."
+        },
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "course-003",
+              "code": "CSCI 361",
+              "name": "Software Engineering",
+              "credits": 6,
+              "semester": "Spring 2026",
+              "instructor": "Prof. Nurlan Omarov",
+              "schedule": [
+                {
+                  "day": "monday",
+                  "startTime": "14:00",
+                  "endTime": "15:30",
+                  "room": "105",
+                  "buildingId": "bldg-002"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+
+    "planner": {
+      "basePrefix": "/planner",
+
+      "getEvents": {
+        "method": "GET",
+        "path": "/planner/events",
+        "description": "Get the authenticated user's personal planner events. Filter by date range.",
+        "auth": true,
+        "queryParams": {
+          "startDate": "2026-04-01",
+          "endDate": "2026-04-30",
+          "_note": "Both optional. ISO date strings YYYY-MM-DD."
+        },
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "plan-001",
+              "title": "CSCI 361 Lecture",
+              "description": null,
+              "date": "2026-04-02",
+              "startTime": "14:00",
+              "endTime": "15:30",
+              "type": "class",
+              "location": "Block 2, Room 105",
+              "buildingId": "bldg-002",
+              "color": "#3B82F6",
+              "isRecurring": true,
+              "reminderMinutes": 15
+            },
+            {
+              "id": "plan-002",
+              "title": "Senior Project Meeting",
+              "description": null,
+              "date": "2026-04-02",
+              "startTime": "16:00",
+              "endTime": "17:00",
+              "type": "meeting",
+              "location": "Block 2, Room 210",
+              "buildingId": "bldg-002",
+              "color": "#10B981",
+              "isRecurring": false,
+              "reminderMinutes": 30
+            },
+            {
+              "id": "plan-003",
+              "title": "Study Session - ML Exam",
+              "description": "Review chapters 5-8",
+              "date": "2026-04-03",
+              "startTime": "18:00",
+              "endTime": "20:00",
+              "type": "study",
+              "location": "Library, Study Hall A",
+              "buildingId": "bldg-004",
+              "color": "#F59E0B",
+              "isRecurring": false,
+              "reminderMinutes": 60
+            },
+            {
+              "id": "plan-004",
+              "title": "Career Fair",
+              "description": "Bring resume copies",
+              "date": "2026-04-15",
+              "startTime": "10:00",
+              "endTime": "17:00",
+              "type": "event",
+              "location": "Student Center",
+              "buildingId": "bldg-005",
+              "color": "#8B5CF6",
+              "isRecurring": false,
+              "reminderMinutes": 120
+            },
+            {
+              "id": "plan-005",
+              "title": "CSCI 409 Lecture",
+              "description": null,
+              "date": "2026-04-02",
+              "startTime": "10:00",
+              "endTime": "11:30",
+              "type": "class",
+              "location": "Block 2, Room 210",
+              "buildingId": "bldg-002",
+              "color": "#3B82F6",
+              "isRecurring": true,
+              "reminderMinutes": 15
+            }
+          ]
+        }
+      },
+
+      "createEvent": {
+        "method": "POST",
+        "path": "/planner/events",
+        "description": "Create a new personal planner event.",
+        "auth": true,
+        "typeValues": [
+          "class",
+          "study",
+          "meeting",
+          "event",
+          "reminder",
+          "other"
+        ],
+        "requestBody": {
+          "title": "Study Session - Finals",
+          "description": "Review all chapters",
+          "date": "2026-04-20",
+          "startTime": "10:00",
+          "endTime": "13:00",
+          "type": "study",
+          "location": "Library, Study Hall B",
+          "buildingId": "bldg-004",
+          "color": "#F59E0B",
+          "isRecurring": false,
+          "reminderMinutes": 30
+        },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "plan-006",
+            "title": "Study Session - Finals",
+            "description": "Review all chapters",
+            "date": "2026-04-20",
+            "startTime": "10:00",
+            "endTime": "13:00",
+            "type": "study",
+            "location": "Library, Study Hall B",
+            "buildingId": "bldg-004",
+            "color": "#F59E0B",
+            "isRecurring": false,
+            "reminderMinutes": 30
+          }
+        }
+      },
+
+      "updateEvent": {
+        "method": "PATCH",
+        "path": "/planner/events/:id",
+        "description": "Update an existing planner event. Only send fields that need to change.",
+        "auth": true,
+        "pathParams": { "id": "plan-003" },
+        "requestBody": {
+          "startTime": "19:00",
+          "endTime": "21:00",
+          "reminderMinutes": 45
+        },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "plan-003",
+            "title": "Study Session - ML Exam",
+            "description": "Review chapters 5-8",
+            "date": "2026-04-03",
+            "startTime": "19:00",
+            "endTime": "21:00",
+            "type": "study",
+            "location": "Library, Study Hall A",
+            "buildingId": "bldg-004",
+            "color": "#F59E0B",
+            "isRecurring": false,
+            "reminderMinutes": 45
+          }
+        }
+      },
+
+      "deleteEvent": {
+        "method": "DELETE",
+        "path": "/planner/events/:id",
+        "description": "Delete a planner event by ID.",
+        "auth": true,
+        "pathParams": { "id": "plan-003" },
+        "successResponse": {
+          "success": true,
+          "data": null
+        }
+      }
+    },
+
+    "studyRooms": {
+      "basePrefix": "/study-rooms",
+
+      "getStudyRooms": {
+        "method": "GET",
+        "path": "/study-rooms",
+        "description": "Get all study rooms. Filter by building and/or availability.",
+        "auth": true,
+        "queryParams": {
+          "buildingId": "bldg-004",
+          "available": true,
+          "_note": "Both optional. available is boolean."
+        },
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "study-001",
+              "buildingId": "bldg-004",
+              "buildingName": "Library",
+              "name": "Study Hall A",
+              "floor": 1,
+              "capacity": 40,
+              "amenities": [
+                "Wi-Fi",
+                "Power Outlets",
+                "Natural Light",
+                "Whiteboard"
+              ],
+              "isAvailable": true,
+              "currentOccupancy": 18,
+              "noiseLevel": "quiet",
+              "imageUrl": null
+            },
+            {
+              "id": "study-002",
+              "buildingId": "bldg-004",
+              "buildingName": "Library",
+              "name": "Study Hall B",
+              "floor": 2,
+              "capacity": 30,
+              "amenities": ["Wi-Fi", "Power Outlets", "Projector"],
+              "isAvailable": true,
+              "currentOccupancy": 25,
+              "noiseLevel": "quiet",
+              "imageUrl": null
+            },
+            {
+              "id": "study-003",
+              "buildingId": "bldg-004",
+              "buildingName": "Library",
+              "name": "Group Study 1",
+              "floor": 2,
+              "capacity": 8,
+              "amenities": [
+                "Wi-Fi",
+                "Whiteboard",
+                "TV Screen",
+                "Power Outlets"
+              ],
+              "isAvailable": false,
+              "currentOccupancy": 6,
+              "noiseLevel": "collaborative",
+              "imageUrl": null
+            },
+            {
+              "id": "study-004",
+              "buildingId": "bldg-004",
+              "buildingName": "Library",
+              "name": "Group Study 2",
+              "floor": 2,
+              "capacity": 8,
+              "amenities": [
+                "Wi-Fi",
+                "Whiteboard",
+                "TV Screen",
+                "Power Outlets"
+              ],
+              "isAvailable": true,
+              "currentOccupancy": 0,
+              "noiseLevel": "collaborative",
+              "imageUrl": null
+            },
+            {
+              "id": "study-005",
+              "buildingId": "bldg-005",
+              "buildingName": "Student Center",
+              "name": "Open Study Area",
+              "floor": 1,
+              "capacity": 50,
+              "amenities": ["Wi-Fi", "Power Outlets", "Vending Machines"],
+              "isAvailable": true,
+              "currentOccupancy": 35,
+              "noiseLevel": "moderate",
+              "imageUrl": null
+            },
+            {
+              "id": "study-006",
+              "buildingId": "bldg-001",
+              "buildingName": "Block 1",
+              "name": "Science Commons",
+              "floor": 1,
+              "capacity": 20,
+              "amenities": ["Wi-Fi", "Power Outlets", "Lab Equipment Access"],
+              "isAvailable": true,
+              "currentOccupancy": 8,
+              "noiseLevel": "moderate",
+              "imageUrl": null
+            }
+          ]
+        }
+      },
+
+      "getRoomAvailability": {
+        "method": "GET",
+        "path": "/study-rooms/:id/availability",
+        "description": "Get available time slots for a room on a specific date.",
+        "auth": true,
+        "pathParams": { "id": "study-001" },
+        "queryParams": { "date": "2026-04-10" },
+        "successResponse": {
+          "success": true,
+          "data": [
+            { "startTime": "08:00", "endTime": "09:00", "available": true },
+            { "startTime": "09:00", "endTime": "10:00", "available": true },
+            { "startTime": "10:00", "endTime": "11:00", "available": false },
+            { "startTime": "11:00", "endTime": "12:00", "available": false },
+            { "startTime": "12:00", "endTime": "13:00", "available": true },
+            { "startTime": "13:00", "endTime": "14:00", "available": true },
+            { "startTime": "14:00", "endTime": "15:00", "available": true },
+            { "startTime": "15:00", "endTime": "16:00", "available": false },
+            { "startTime": "16:00", "endTime": "17:00", "available": true },
+            { "startTime": "17:00", "endTime": "18:00", "available": true },
+            { "startTime": "18:00", "endTime": "19:00", "available": true },
+            { "startTime": "19:00", "endTime": "20:00", "available": true },
+            { "startTime": "20:00", "endTime": "21:00", "available": true }
+          ]
+        }
+      },
+
+      "bookRoom": {
+        "method": "POST",
+        "path": "/study-rooms/:id/book",
+        "description": "Book a study room for a specific date and time slot.",
+        "auth": true,
+        "pathParams": { "id": "study-001" },
+        "requestBody": {
+          "date": "2026-04-10",
+          "startTime": "14:00",
+          "endTime": "16:00"
+        },
+        "successResponse": {
+          "success": true,
+          "data": {
+            "id": "booking-abc123",
+            "roomId": "study-001",
+            "userId": "user-001",
+            "date": "2026-04-10",
+            "startTime": "14:00",
+            "endTime": "16:00",
+            "status": "confirmed"
+          }
+        }
+      },
+
+      "cancelBooking": {
+        "method": "DELETE",
+        "path": "/study-rooms/bookings/:id",
+        "description": "Cancel an existing room booking.",
+        "auth": true,
+        "pathParams": { "id": "booking-abc123" },
+        "successResponse": {
+          "success": true,
+          "data": null
+        }
+      },
+
+      "getUserBookings": {
+        "method": "GET",
+        "path": "/study-rooms/bookings",
+        "description": "Get all room bookings for the authenticated user.",
+        "auth": true,
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "booking-abc123",
+              "roomId": "study-001",
+              "userId": "user-001",
+              "date": "2026-04-10",
+              "startTime": "14:00",
+              "endTime": "16:00",
+              "status": "confirmed"
+            }
+          ]
+        },
+        "statusValues": ["confirmed", "pending", "cancelled"]
+      }
+    },
+
+    "settings": {
+      "basePrefix": "/settings",
+
+      "getSettings": {
+        "method": "GET",
+        "path": "/settings",
+        "description": "Get the authenticated user's app settings.",
+        "auth": true,
+        "successResponse": {
+          "success": true,
+          "data": {
+            "notifications": {
+              "events": true,
+              "discounts": true,
+              "classReminders": true,
+              "campusAlerts": true
+            },
+            "accessibility": {
+              "preferAccessibleRoutes": false,
+              "highContrast": false,
+              "largeText": false
+            },
+            "privacy": {
+              "shareLocation": true,
+              "anonymousMode": false
+            },
+            "language": "en",
+            "theme": "light"
+          }
+        }
+      },
+
+      "updateSettings": {
+        "method": "PATCH",
+        "path": "/settings",
+        "description": "Update user settings. Send only the fields that changed.",
+        "auth": true,
+        "requestBody": {
+          "language": "kz",
+          "theme": "dark",
+          "notifications": {
+            "classReminders": false
+          }
+        },
+        "languageValues": ["en", "kz", "ru"],
+        "themeValues": ["light", "dark", "system"],
+        "successResponse": {
+          "success": true,
+          "data": {
+            "notifications": {
+              "events": true,
+              "discounts": true,
+              "classReminders": false,
+              "campusAlerts": true
+            },
+            "accessibility": {
+              "preferAccessibleRoutes": false,
+              "highContrast": false,
+              "largeText": false
+            },
+            "privacy": {
+              "shareLocation": true,
+              "anonymousMode": false
+            },
+            "language": "kz",
+            "theme": "dark"
+          }
+        }
+      }
+    },
+
+    "notifications": {
+      "basePrefix": "/notifications",
+      "_note": "This endpoint group is not yet in api.ts but is needed for the NotificationsScreen.",
+
+      "getNotifications": {
+        "method": "GET",
+        "path": "/notifications",
+        "description": "Get all notifications for the authenticated user.",
+        "auth": true,
+        "successResponse": {
+          "success": true,
+          "data": [
+            {
+              "id": "notif-001",
+              "title": "Upcoming Event",
+              "message": "Tech Talk: AI in Healthcare starts in 1 hour at the Main Auditorium",
+              "type": "events",
+              "date": "2026-04-09T09:30:00Z",
+              "read": false,
+              "action": {
+                "screen": "EventDetail",
+                "params": { "eventId": "evt-001" }
+              }
+            },
+            {
+              "id": "notif-002",
+              "title": "Class Reminder",
+              "message": "Your CSCI 408 class starts in 15 minutes at Building A, Room 101",
+              "type": "academic",
+              "date": "2026-04-09T08:00:00Z",
+              "read": false,
+              "action": { "screen": "Schedule", "params": {} }
+            },
+            {
+              "id": "notif-003",
+              "title": "New Discount Available",
+              "message": "Get 20% off at Campus Cafe! Valid until the end of this month.",
+              "type": "discount",
+              "date": "2026-04-09T05:00:00Z",
+              "read": true,
+              "action": { "screen": "Discounts", "params": {} }
+            },
+            {
+              "id": "notif-004",
+              "title": "Navigation Update",
+              "message": "Building B entrance is temporarily closed. Alternative routes are available.",
+              "type": "navigation",
+              "date": "2026-04-08T10:00:00Z",
+              "read": true,
+              "action": { "screen": "MapTab", "params": {} }
+            }
+          ]
+        },
+        "typeValues": ["events", "academic", "discount", "navigation", "system"]
+      },
+
+      "markAllRead": {
+        "method": "PATCH",
+        "path": "/notifications/read-all",
+        "description": "Mark all notifications as read for the authenticated user.",
+        "auth": true,
+        "requestBody": null,
+        "successResponse": {
+          "success": true,
+          "data": null
+        }
+      },
+
+      "markRead": {
+        "method": "PATCH",
+        "path": "/notifications/:id/read",
+        "description": "Mark a single notification as read.",
+        "auth": true,
+        "pathParams": { "id": "notif-001" },
+        "requestBody": null,
+        "successResponse": {
+          "success": true,
+          "data": null
+        }
+      }
+    }
+  },
+
+  "dataModels": {
+    "User": {
+      "id": "string (uuid)",
+      "email": "string",
+      "firstName": "string",
+      "lastName": "string",
+      "studentId": "string",
+      "avatar": "string | null (URL)",
+      "createdAt": "string (ISO 8601)"
+    },
+    "Building": {
+      "id": "string",
+      "name": "string",
+      "shortName": "string",
+      "description": "string",
+      "latitude": "number",
+      "longitude": "number",
+      "floors": "number (integer)",
+      "hasElevator": "boolean",
+      "hasRamp": "boolean",
+      "category": "academic | residential | dining | library | sports | admin | other",
+      "imageUrl": "string | null"
+    },
+    "Room": {
+      "id": "string",
+      "buildingId": "string",
+      "name": "string",
+      "floor": "number (integer)",
+      "type": "classroom | lab | office | study_room | restroom | elevator | stairs | other",
+      "capacity": "number | null",
+      "accessible": "boolean"
+    },
+    "Route": {
+      "id": "string",
+      "startLocation": "{ latitude, longitude, name }",
+      "endLocation": "{ latitude, longitude, name }",
+      "distance": "number (meters)",
+      "duration": "number (minutes)",
+      "isAccessible": "boolean",
+      "crowdLevel": "low | medium | high",
+      "waypoints": "Array<{ latitude, longitude }>",
+      "instructions": "Array<string>"
+    },
+    "CampusEvent": {
+      "id": "string",
+      "title": "string",
+      "description": "string",
+      "location": "string",
+      "buildingId": "string | null",
+      "startDate": "string (ISO 8601)",
+      "endDate": "string (ISO 8601)",
+      "category": "academic | social | sports | cultural | career | other",
+      "imageUrl": "string | null",
+      "organizer": "string",
+      "isRegistrationRequired": "boolean",
+      "registrationUrl": "string | null"
+    },
+    "Discount": {
+      "id": "string",
+      "vendorName": "string",
+      "vendorLogo": "string | null",
+      "title": "string",
+      "description": "string",
+      "discountPercentage": "number (0 = no percentage, show as gift)",
+      "category": "food | entertainment | shopping | services | travel | other",
+      "validUntil": "string (YYYY-MM-DD)",
+      "code": "string | null",
+      "terms": "string",
+      "isVerified": "boolean"
+    },
+    "Review": {
+      "id": "string",
+      "userId": "string",
+      "userName": "string",
+      "userAvatar": "string | null",
+      "targetId": "string",
+      "targetType": "building | room | cafe | service",
+      "targetName": "string",
+      "rating": "number (1-5)",
+      "comment": "string",
+      "sentiment": "positive | neutral | negative",
+      "helpful": "number (integer count)",
+      "createdAt": "string (ISO 8601)"
+    },
+    "Course": {
+      "id": "string",
+      "code": "string (e.g. 'CSCI 408')",
+      "name": "string",
+      "credits": "number",
+      "grade": "string | null (A, A-, B+, B, B-, C+, C, C-, D+, D, F)",
+      "gradePoints": "number | null (4.0, 3.67, 3.33, 3.0, 2.67, 2.33, 2.0, 1.67, 1.33, 1.0, 0.0)",
+      "semester": "string (e.g. 'Spring 2026')",
+      "instructor": "string",
+      "schedule": "Array<CourseSchedule>"
+    },
+    "CourseSchedule": {
+      "day": "monday | tuesday | wednesday | thursday | friday | saturday | sunday",
+      "startTime": "string (HH:MM)",
+      "endTime": "string (HH:MM)",
+      "room": "string",
+      "buildingId": "string"
+    },
+    "AcademicPlan": {
+      "totalCreditsRequired": "number",
+      "creditsCompleted": "number",
+      "creditsInProgress": "number",
+      "gpa": "number (0.00 - 4.00)",
+      "standing": "good | probation | dean_list",
+      "expectedGraduation": "string (e.g. 'May 2026')",
+      "major": "string",
+      "minor": "string | null"
+    },
+    "PlannerEvent": {
+      "id": "string",
+      "title": "string",
+      "description": "string | null",
+      "date": "string (YYYY-MM-DD)",
+      "startTime": "string (HH:MM)",
+      "endTime": "string (HH:MM)",
+      "type": "class | study | meeting | event | reminder | other",
+      "location": "string | null",
+      "buildingId": "string | null",
+      "color": "string (hex color)",
+      "isRecurring": "boolean",
+      "reminderMinutes": "number | null"
+    },
+    "StudyRoom": {
+      "id": "string",
+      "buildingId": "string",
+      "buildingName": "string",
+      "name": "string",
+      "floor": "number",
+      "capacity": "number",
+      "amenities": "Array<string>",
+      "isAvailable": "boolean",
+      "currentOccupancy": "number",
+      "noiseLevel": "quiet | moderate | collaborative",
+      "imageUrl": "string | null"
+    },
+    "StudyRoomBooking": {
+      "id": "string",
+      "roomId": "string",
+      "userId": "string",
+      "date": "string (YYYY-MM-DD)",
+      "startTime": "string (HH:MM)",
+      "endTime": "string (HH:MM)",
+      "status": "confirmed | pending | cancelled"
+    },
+    "UserSettings": {
+      "notifications": {
+        "events": "boolean",
+        "discounts": "boolean",
+        "classReminders": "boolean",
+        "campusAlerts": "boolean"
+      },
+      "accessibility": {
+        "preferAccessibleRoutes": "boolean",
+        "highContrast": "boolean",
+        "largeText": "boolean"
+      },
+      "privacy": {
+        "shareLocation": "boolean",
+        "anonymousMode": "boolean"
+      },
+      "language": "en | kz | ru",
+      "theme": "light | dark | system"
+    },
+    "Notification": {
+      "id": "string",
+      "title": "string",
+      "message": "string",
+      "type": "events | academic | discount | navigation | system",
+      "date": "string (ISO 8601)",
+      "read": "boolean",
+      "action": "{ screen: string, params: object } | null"
+    }
+  }
+}
