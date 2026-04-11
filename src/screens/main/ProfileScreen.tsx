@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuthStore } from '../../stores/authStore';
-import { mockAcademicPlan } from '../../data/mockData';
+import { academicApi } from '../../services/api';
 import { useColors, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useTranslation } from '../../i18n';
 
@@ -24,6 +24,13 @@ export function ProfileScreen() {
   const t = useTranslation();
   const COLORS = useColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
+  const [plan, setPlan] = useState<any>(null);
+
+  useEffect(() => {
+    academicApi.getAcademicPlan()
+      .then((res) => setPlan(res.data))
+      .catch(console.error);
+  }, []);
 
   const handleLogout = () => {
     Alert.alert(t.profile.logoutTitle, t.profile.logoutConfirm, [
@@ -65,9 +72,9 @@ export function ProfileScreen() {
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <StatCard label={t.profile.gpa} value={mockAcademicPlan.gpa.toFixed(2)} icon="trophy-outline" color={COLORS.primary} />
-          <StatCard label={t.profile.credits} value={`${mockAcademicPlan.creditsCompleted}`} icon="bookmark-outline" color={COLORS.secondary} />
-          <StatCard label={t.profile.major} value={mockAcademicPlan.major.split(' ')[0]} icon="school-outline" color={COLORS.accent} />
+          <StatCard label={t.profile.gpa} value={plan ? plan.gpa.toFixed(2) : '—'} icon="trophy-outline" color={COLORS.primary} />
+          <StatCard label={t.profile.credits} value={plan ? `${plan.creditsCompleted}` : '—'} icon="bookmark-outline" color={COLORS.secondary} />
+          <StatCard label={t.profile.major} value={plan ? plan.major.split(' ')[0] : '—'} icon="school-outline" color={COLORS.accent} />
         </View>
 
         {/* Notifications */}

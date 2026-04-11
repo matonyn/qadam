@@ -17,8 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { NavigateStackParamList } from '../../navigation/NavigateNavigator';
-import { mockBuildings } from '../../data/mockData';
-import { RoutePreference } from '../../types';
+import { Building, RoutePreference } from '../../types';
+import { mapsApi } from '../../services/api';
 import { useColors, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useTranslation } from '../../i18n';
 
@@ -56,9 +56,13 @@ export function MapScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBuilding, setSelectedBuilding] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [buildings, setBuildings] = useState<Building[]>([]);
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
+    mapsApi.getBuildings()
+      .then((res) => setBuildings(res.data ?? []))
+      .catch(console.error);
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
@@ -91,7 +95,7 @@ export function MapScreen() {
     }
   };
 
-  const filteredBuildings = mockBuildings.filter((b) =>
+  const filteredBuildings = buildings.filter((b) =>
     b.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -105,7 +109,7 @@ export function MapScreen() {
         showsUserLocation
         showsMyLocationButton={false}
       >
-        {mockBuildings.map((building) => (
+        {buildings.map((building) => (
           <Marker
             key={building.id}
             coordinate={{ latitude: building.latitude, longitude: building.longitude }}

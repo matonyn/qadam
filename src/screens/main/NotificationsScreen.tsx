@@ -1,18 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
-import { mockNotifications } from '../../data/mockData';
 import { useColors, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useTranslation } from '../../i18n';
+import { notificationsApi } from '../../services/api';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Notifications'>;
@@ -40,15 +41,25 @@ export function NotificationsScreen({ navigation }: Props) {
     system: { icon: 'settings', color: COLORS.textSecondary, label: 'System' },
   };
 
-  const [items, setItems] = useState(mockNotifications);
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    notificationsApi.getNotifications()
+      .then((res) => setItems(res.data ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const unreadCount = items.filter((n) => !n.read).length;
 
   const markAllRead = () => {
+    notificationsApi.markAllRead().catch(console.error);
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   const markRead = (id: string) => {
+    notificationsApi.markRead(id).catch(console.error);
     setItems((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
@@ -76,6 +87,7 @@ export function NotificationsScreen({ navigation }: Props) {
         </View>
       )}
 
+      {loading && <ActivityIndicator style={{ marginTop: 24 }} color={COLORS.primary} />}
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}

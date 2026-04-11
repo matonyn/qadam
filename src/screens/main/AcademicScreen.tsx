@@ -1,16 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { mockCourses, mockAcademicPlan, gradePointsMap } from '../../data/mockData';
+import { gradePointsMap } from '../../data/mockData';
 import { useColors, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useTranslation } from '../../i18n';
+import { academicApi } from '../../services/api';
 
 type Tab = 'overview' | 'courses' | 'calculator';
 
@@ -23,7 +25,20 @@ export function AcademicScreen() {
     { grade: 'A', credits: 6 },
     { grade: 'A-', credits: 6 },
   ]);
+  const [plan, setPlan] = useState<any>(null);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const t = useTranslation();
+
+  useEffect(() => {
+    Promise.all([academicApi.getAcademicPlan(), academicApi.getCourses()])
+      .then(([planRes, coursesRes]) => {
+        setPlan(planRes.data);
+        setCourses(coursesRes.data ?? []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const GRADE_COLORS: Record<string, string> = {
     A: COLORS.success,
@@ -36,13 +51,14 @@ export function AcademicScreen() {
     F: COLORS.error,
   };
 
-  const plan = mockAcademicPlan;
-  const progressPct = Math.round((plan.creditsCompleted / plan.totalCreditsRequired) * 100);
+  const progressPct = plan
+    ? Math.round((plan.creditsCompleted / plan.totalCreditsRequired) * 100)
+    : 0;
 
-  const currentSemesterCourses = mockCourses.filter(
+  const currentSemesterCourses = courses.filter(
     (c) => c.semester === 'Spring 2026'
   );
-  const completedCourses = mockCourses.filter((c) => c.grade);
+  const completedCourses = courses.filter((c) => c.grade);
 
   // Calculator GPA
   const calcGPA = (() => {
@@ -84,14 +100,15 @@ export function AcademicScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {loading && <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} />}
         {/* OVERVIEW */}
-        {activeTab === 'overview' && (
+        {!loading && activeTab === 'overview' && (
           <>
             {/* GPA Card */}
             <View style={styles.gpaCard}>
               <View style={styles.gpaMain}>
                 <Text style={styles.gpaLabel}>{t.academic.gpaProgress}</Text>
-                <Text style={styles.gpaValue}>{plan.gpa.toFixed(2)}</Text>
+                <Text style={styles.gpaValue}>{plan?.gpa?.toFixed(2) ?? '—'}</Text>
                 <View style={styles.standingBadge}>
                   <Ionicons name="ribbon" size={14} color="#34D399" />
                   <Text style={styles.standingText}>{t.profile.deansList}</Text>
@@ -99,17 +116,17 @@ export function AcademicScreen() {
               </View>
               <View style={styles.gpaSplit}>
                 <View style={styles.gpaStat}>
-                  <Text style={styles.gpaStatValue}>{plan.major}</Text>
+                  <Text style={styles.gpaStatValue}>{plan?.major ?? '—'}</Text>
                   <Text style={styles.gpaStatLabel}>{t.academic.major}</Text>
                 </View>
-                {plan.minor && (
+                {plan?.minor && (
                   <View style={styles.gpaStat}>
                     <Text style={styles.gpaStatValue}>{plan.minor}</Text>
                     <Text style={styles.gpaStatLabel}>{t.academic.minor}</Text>
                   </View>
                 )}
                 <View style={styles.gpaStat}>
-                  <Text style={styles.gpaStatValue}>{plan.expectedGraduation}</Text>
+                  <Text style={styles.gpaStatValue}>{plan?.expectedGraduation ?? '—'}</Text>
                   <Text style={styles.gpaStatLabel}>{t.academic.graduation}</Text>
                 </View>
               </View>
@@ -120,8 +137,7 @@ export function AcademicScreen() {
               <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>{t.academic.creditProgress}</Text>
                 <Text style={styles.creditCount}>
-                  {plan.creditsCompleted + plan.creditsInProgress}/
-                  {plan.totalCreditsRequired} {t.academic.credits}
+                  {plan ? `${plan.creditsCompleted + plan.creditsInProgress}/${plan.totalCreditsRequired}` : '—'} {t.academic.credits}
                 </Text>
               </View>
               <View style={styles.progressBar}>
@@ -130,7 +146,7 @@ export function AcademicScreen() {
                   style={[
                     styles.progressInProgress,
                     {
-                      width: `${Math.round((plan.creditsInProgress / plan.totalCreditsRequired) * 100)}%`,
+                      width: `${plan ? Math.round((plan.creditsInProgress / plan.totalCreditsRequired) * 100) : 0}%`,
                       left: `${progressPct}%` as any,
                     },
                   ]}
@@ -139,11 +155,11 @@ export function AcademicScreen() {
               <View style={styles.progressLegend}>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: COLORS.primary }]} />
-                  <Text style={styles.legendText}>{t.academic.completed} ({plan.creditsCompleted})</Text>
+                  <Text style={styles.legendText}>{t.academic.completed} ({plan?.creditsCompleted ?? 0})</Text>
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: COLORS.primaryLight }]} />
-                  <Text style={styles.legendText}>{t.academic.inProgress} ({plan.creditsInProgress})</Text>
+                  <Text style={styles.legendText}>{t.academic.inProgress} ({plan?.creditsInProgress ?? 0})</Text>
                 </View>
               </View>
             </View>
@@ -170,7 +186,7 @@ export function AcademicScreen() {
         )}
 
         {/* COURSES */}
-        {activeTab === 'courses' && (
+        {!loading && activeTab === 'courses' && (
           <>
             <Text style={styles.semesterLabel}>{t.academic.springInProgress}</Text>
             {currentSemesterCourses.map((course) => (
@@ -184,7 +200,7 @@ export function AcademicScreen() {
         )}
 
         {/* GPA CALCULATOR */}
-        {activeTab === 'calculator' && (
+        {!loading && activeTab === 'calculator' && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t.academic.gpaCalculator}</Text>
             <View style={styles.calcResult}>
@@ -279,7 +295,7 @@ function CourseCard({
   course,
   GRADE_COLORS,
 }: {
-  course: (typeof mockCourses)[0];
+  course: any;
   GRADE_COLORS: Record<string, string>;
 }) {
   const COLORS = useColors();

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,14 @@ import {
   Alert,
   Linking,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigateStackParamList } from '../../navigation/NavigateNavigator';
-import { mockBuildings, mockRooms, mockReviews } from '../../data/mockData';
+import { mapsApi, reviewsApi } from '../../services/api';
 import { useColors, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useTranslation } from '../../i18n';
 
@@ -50,11 +51,38 @@ export function BuildingDetailScreen({ navigation, route }: Props) {
   };
 
   const { buildingId } = route.params;
-  const building = mockBuildings.find((b) => b.id === buildingId);
-  const rooms = mockRooms.filter((r) => r.buildingId === buildingId);
-  const buildingReviews = mockReviews.filter(
-    (r) => r.targetId === buildingId || r.targetName === building?.name
-  );
+  const [building, setBuilding] = useState<any>(null);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [buildingReviews, setBuildingReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      mapsApi.getBuilding(buildingId),
+      mapsApi.getRoomsByBuilding(buildingId),
+      reviewsApi.getReviews({ targetId: buildingId, targetType: 'building' }),
+    ])
+      .then(([bRes, rRes, revRes]) => {
+        setBuilding(bRes.data);
+        setRooms(rRes.data ?? []);
+        setBuildingReviews(revRes.data ?? []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [buildingId]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <TouchableOpacity style={styles.backBtnOverlay} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.notFound}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!building) {
     return (

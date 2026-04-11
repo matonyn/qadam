@@ -1,618 +1,306 @@
 /**
- * API Service Layer
+ * API Service Layer — real HTTP calls to the Qadam backend.
  *
- * This file contains placeholder functions for REST API calls.
- * Replace the mock implementations with actual API calls to your backend.
- *
- * Base URL should be configured based on your environment.
+ * Base URL:
+ *   iOS Simulator / web:  http://localhost:8000/api/v1
+ *   Android Emulator:     http://10.0.2.2:8000/api/v1
+ *   Physical device:      http://<your-machine-ip>:8000/api/v1
  */
 
-const API_BASE_URL = "https://your-api-domain.com/api/v1";
+import { tokenManager } from './tokenManager';
 
-// Helper function for making API requests
-async function apiRequest<T>(
+export const API_BASE_URL = 'http://192.168.1.151:8000/api/v1';
+
+// ── Core fetch wrapper ───────────────────────────────────────────────────────
+
+async function request<T>(
   endpoint: string,
   options: RequestInit = {},
+  retry = true,
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const token = tokenManager.getAccessToken();
 
-  const defaultHeaders: HeadersInit = {
-    "Content-Type": "application/json",
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
   };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  // Add auth token if available
-  // const token = await getAuthToken();
-  // if (token) {
-  //   defaultHeaders['Authorization'] = `Bearer ${token}`;
-  // }
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response
-      .json()
-      .catch(() => ({ message: "Request failed" }));
-    throw new Error(error.message || `HTTP error! status: ${response.status}`);
+  // Auto-refresh on 401
+  if (res.status === 401 && retry) {
+    const refreshed = await _tryRefresh();
+    if (refreshed) return request<T>(endpoint, options, false);
   }
 
-  return response.json();
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.message ?? `HTTP ${res.status}`);
+  return body as T;
 }
 
-// ============================================
-// Authentication API
-// ============================================
+async function _tryRefresh(): Promise<boolean> {
+  const refreshToken = tokenManager.getRefreshToken();
+  if (!refreshToken) return false;
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return false;
+    const body = await res.json();
+    const newAccess: string = body?.data?.accessToken;
+    if (newAccess) {
+      tokenManager.setTokens(newAccess, refreshToken);
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  /**
-   * Login with email and password
-   * POST /auth/login
-   */
-  login: async (email: string, password: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/auth/login', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ email, password }),
-    // });
-    console.log("API: Login called with", { email });
-    return { success: true, token: "mock-token" };
-  },
+  login: (email: string, password: string) =>
+    request<any>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
 
-  /**
-   * Register new user
-   * POST /auth/register
-   */
-  register: async (data: {
+  register: (data: {
     email: string;
     password: string;
     firstName: string;
     lastName: string;
     studentId: string;
-  }) => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/auth/register', {
-    //   method: 'POST',
-    //   body: JSON.stringify(data),
-    // });
-    console.log("API: Register called with", data);
-    return { success: true, userId: "new-user-id" };
-  },
+  }) =>
+    request<any>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
-  /**
-   * Logout user
-   * POST /auth/logout
-   */
-  logout: async () => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/auth/logout', { method: 'POST' });
-    console.log("API: Logout called");
-    return { success: true };
-  },
+  logout: (refreshToken: string) =>
+    request<any>('/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    }),
 
-  /**
-   * Refresh auth token
-   * POST /auth/refresh
-   */
-  refreshToken: async (refreshToken: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/auth/refresh', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ refreshToken }),
-    // });
-    console.log("API: Refresh token called");
-    return { token: "new-mock-token" };
-  },
+  getProfile: () => request<any>('/auth/profile'),
 
-  /**
-   * Get current user profile
-   * GET /auth/profile
-   */
-  getProfile: async () => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/auth/profile');
-    console.log("API: Get profile called");
-    return null;
-  },
+  updateProfile: (data: { firstName?: string; lastName?: string; email?: string }) =>
+    request<any>('/auth/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 
-  /**
-   * Update user profile
-   * PATCH /auth/profile
-   */
-  updateProfile: async (data: Record<string, unknown>) => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/auth/profile', {
-    //   method: 'PATCH',
-    //   body: JSON.stringify(data),
-    // });
-    console.log("API: Update profile called", data);
-    return { success: true };
-  },
+  forgotPassword: (email: string) =>
+    request<any>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
 };
 
-// ============================================
-// Maps & Navigation API
-// ============================================
+// ── Maps ─────────────────────────────────────────────────────────────────────
 
 export const mapsApi = {
-  /**
-   * Get all buildings
-   * GET /maps/buildings
-   */
-  getBuildings: async () => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/maps/buildings');
-    console.log("API: Get buildings called");
-    return [];
-  },
+  getBuildings: () => request<any>('/maps/buildings'),
 
-  /**
-   * Get building by ID
-   * GET /maps/buildings/:id
-   */
-  getBuilding: async (id: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/maps/buildings/${id}`);
-    console.log("API: Get building called", { id });
-    return null;
-  },
+  getBuilding: (id: string) => request<any>(`/maps/buildings/${id}`),
 
-  /**
-   * Get rooms by building
-   * GET /maps/buildings/:id/rooms
-   */
-  getRoomsByBuilding: async (buildingId: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/maps/buildings/${buildingId}/rooms`);
-    console.log("API: Get rooms by building called", { buildingId });
-    return [];
-  },
+  getRoomsByBuilding: (buildingId: string) =>
+    request<any>(`/maps/buildings/${buildingId}/rooms`),
 
-  /**
-   * Search buildings/rooms
-   * GET /maps/search?q=query
-   */
-  search: async (query: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/maps/search?q=${encodeURIComponent(query)}`);
-    console.log("API: Search called", { query });
-    return { buildings: [], rooms: [] };
-  },
+  search: (q: string) =>
+    request<any>(`/maps/search?q=${encodeURIComponent(q)}`),
 
-  /**
-   * Get nearby buildings
-   * GET /maps/nearby?lat=x&lng=y&radius=z
-   */
-  getNearby: async (
-    latitude: number,
-    longitude: number,
-    radius: number = 500,
-  ) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/maps/nearby?lat=${latitude}&lng=${longitude}&radius=${radius}`);
-    console.log("API: Get nearby called", { latitude, longitude, radius });
-    return [];
-  },
+  getNearby: (lat: number, lng: number, radius = 500) =>
+    request<any>(`/maps/nearby?lat=${lat}&lng=${lng}&radius=${radius}`),
 };
 
-// ============================================
-// Routing API
-// ============================================
+// ── Routing ──────────────────────────────────────────────────────────────────
 
 export const routingApi = {
-  /**
-   * Calculate route between two points
-   * POST /routing/calculate
-   */
-  calculateRoute: async (data: {
+  calculateRoute: (data: {
     startLat: number;
     startLng: number;
     endLat: number;
     endLng: number;
-    preference: "shortest" | "accessible" | "least_crowded";
-  }) => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/routing/calculate', {
-    //   method: 'POST',
-    //   body: JSON.stringify(data),
-    // });
-    console.log("API: Calculate route called", data);
-    return null;
-  },
+    preference: 'shortest' | 'accessible' | 'least_crowded';
+  }) =>
+    request<any>('/routing/calculate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
-  /**
-   * Get saved routes
-   * GET /routing/saved
-   */
-  getSavedRoutes: async () => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/routing/saved');
-    console.log("API: Get saved routes called");
-    return [];
-  },
+  getSavedRoutes: () => request<any>('/routing/saved'),
 
-  /**
-   * Save a route
-   * POST /routing/saved
-   */
-  saveRoute: async (routeId: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/routing/saved', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ routeId }),
-    // });
-    console.log("API: Save route called", { routeId });
-    return { success: true };
-  },
+  saveRoute: (routeId: string) =>
+    request<any>('/routing/saved', {
+      method: 'POST',
+      body: JSON.stringify({ routeId }),
+    }),
 
-  /**
-   * Recalculate route (rerouting)
-   * POST /routing/reroute
-   */
-  reroute: async (routeId: string, currentLat: number, currentLng: number) => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/routing/reroute', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ routeId, currentLat, currentLng }),
-    // });
-    console.log("API: Reroute called", { routeId, currentLat, currentLng });
-    return null;
-  },
+  reroute: (routeId: string, currentLat: number, currentLng: number) =>
+    request<any>('/routing/reroute', {
+      method: 'POST',
+      body: JSON.stringify({ routeId, currentLat, currentLng }),
+    }),
 };
 
-// ============================================
-// Events API
-// ============================================
+// ── Events ───────────────────────────────────────────────────────────────────
 
 export const eventsApi = {
-  /**
-   * Get all events
-   * GET /events
-   */
-  getEvents: async (params?: {
-    category?: string;
-    startDate?: string;
-    endDate?: string;
-  }) => {
-    // TODO: Replace with actual API call
-    // const queryParams = new URLSearchParams(params as Record<string, string>);
-    // return apiRequest(`/events?${queryParams}`);
-    console.log("API: Get events called", params);
-    return [];
+  getEvents: (params?: { category?: string; startDate?: string; endDate?: string }) => {
+    const q = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(params ?? {}).filter(([, v]) => v != null) as [string, string][],
+      ),
+    ).toString();
+    return request<any>(`/events${q ? '?' + q : ''}`);
   },
 
-  /**
-   * Get event by ID
-   * GET /events/:id
-   */
-  getEvent: async (id: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/events/${id}`);
-    console.log("API: Get event called", { id });
-    return null;
-  },
+  getEvent: (id: string) => request<any>(`/events/${id}`),
 
-  /**
-   * Register for event
-   * POST /events/:id/register
-   */
-  registerForEvent: async (eventId: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/events/${eventId}/register`, { method: 'POST' });
-    console.log("API: Register for event called", { eventId });
-    return { success: true };
-  },
+  registerForEvent: (eventId: string) =>
+    request<any>(`/events/${eventId}/register`, { method: 'POST' }),
 };
 
-// ============================================
-// Discounts API
-// ============================================
+// ── Discounts ────────────────────────────────────────────────────────────────
 
 export const discountsApi = {
-  /**
-   * Get all discounts
-   * GET /discounts
-   */
-  getDiscounts: async (params?: { category?: string }) => {
-    // TODO: Replace with actual API call
-    // const queryParams = new URLSearchParams(params as Record<string, string>);
-    // return apiRequest(`/discounts?${queryParams}`);
-    console.log("API: Get discounts called", params);
-    return [];
+  getDiscounts: (params?: { category?: string }) => {
+    const q = params?.category ? `?category=${params.category}` : '';
+    return request<any>(`/discounts${q}`);
   },
 
-  /**
-   * Get discount by ID
-   * GET /discounts/:id
-   */
-  getDiscount: async (id: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/discounts/${id}`);
-    console.log("API: Get discount called", { id });
-    return null;
-  },
+  getDiscount: (id: string) => request<any>(`/discounts/${id}`),
 
-  /**
-   * Verify student eligibility for discount
-   * POST /discounts/:id/verify
-   */
-  verifyEligibility: async (discountId: string, studentId: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/discounts/${discountId}/verify`, {
-    //   method: 'POST',
-    //   body: JSON.stringify({ studentId }),
-    // });
-    console.log("API: Verify eligibility called", { discountId, studentId });
-    return { eligible: true };
-  },
+  verifyEligibility: (discountId: string, studentId: string) =>
+    request<any>(`/discounts/${discountId}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ studentId }),
+    }),
 };
 
-// ============================================
-// Reviews API
-// ============================================
+// ── Reviews ──────────────────────────────────────────────────────────────────
 
 export const reviewsApi = {
-  /**
-   * Get reviews
-   * GET /reviews?targetId=x&targetType=y
-   */
-  getReviews: async (params?: { targetId?: string; targetType?: string }) => {
-    // TODO: Replace with actual API call
-    // const queryParams = new URLSearchParams(params as Record<string, string>);
-    // return apiRequest(`/reviews?${queryParams}`);
-    console.log("API: Get reviews called", params);
-    return [];
+  getReviews: (params?: { targetId?: string; targetType?: string }) => {
+    const q = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(params ?? {}).filter(([, v]) => v != null) as [string, string][],
+      ),
+    ).toString();
+    return request<any>(`/reviews${q ? '?' + q : ''}`);
   },
 
-  /**
-   * Create review
-   * POST /reviews
-   */
-  createReview: async (data: {
+  createReview: (data: {
     targetId: string;
     targetType: string;
+    targetName: string;
     rating: number;
-    comment: string;
-  }) => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/reviews', {
-    //   method: 'POST',
-    //   body: JSON.stringify(data),
-    // });
-    console.log("API: Create review called", data);
-    return { success: true, reviewId: "new-review-id" };
-  },
+    comment?: string;
+  }) =>
+    request<any>('/reviews', { method: 'POST', body: JSON.stringify(data) }),
 
-  /**
-   * Mark review as helpful
-   * POST /reviews/:id/helpful
-   */
-  markHelpful: async (reviewId: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/reviews/${reviewId}/helpful`, { method: 'POST' });
-    console.log("API: Mark helpful called", { reviewId });
-    return { success: true };
-  },
+  markHelpful: (reviewId: string) =>
+    request<any>(`/reviews/${reviewId}/helpful`, { method: 'POST' }),
 
-  /**
-   * Report review
-   * POST /reviews/:id/report
-   */
-  reportReview: async (reviewId: string, reason: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/reviews/${reviewId}/report`, {
-    //   method: 'POST',
-    //   body: JSON.stringify({ reason }),
-    // });
-    console.log("API: Report review called", { reviewId, reason });
-    return { success: true };
-  },
+  reportReview: (reviewId: string, reason: string) =>
+    request<any>(`/reviews/${reviewId}/report`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
 };
 
-// ============================================
-// Academic API
-// ============================================
+// ── Academic ─────────────────────────────────────────────────────────────────
 
 export const academicApi = {
-  /**
-   * Get courses
-   * GET /academic/courses
-   */
-  getCourses: async (params?: { semester?: string }) => {
-    // TODO: Replace with actual API call
-    // const queryParams = new URLSearchParams(params as Record<string, string>);
-    // return apiRequest(`/academic/courses?${queryParams}`);
-    console.log("API: Get courses called", params);
-    return [];
+  getCourses: (params?: { semester?: string }) => {
+    const q = params?.semester ? `?semester=${encodeURIComponent(params.semester)}` : '';
+    return request<any>(`/academic/courses${q}`);
   },
 
-  /**
-   * Get academic plan
-   * GET /academic/plan
-   */
-  getAcademicPlan: async () => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/academic/plan');
-    console.log("API: Get academic plan called");
-    return null;
-  },
+  getAcademicPlan: () => request<any>('/academic/plan'),
 
-  /**
-   * Get schedule
-   * GET /academic/schedule
-   */
-  getSchedule: async (date?: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/academic/schedule${date ? `?date=${date}` : ''}`);
-    console.log("API: Get schedule called", { date });
-    return [];
-  },
+  getSchedule: (date?: string) =>
+    request<any>(`/academic/schedule${date ? `?date=${date}` : ''}`),
 };
 
-// ============================================
-// Planner API
-// ============================================
+// ── Planner ──────────────────────────────────────────────────────────────────
 
 export const plannerApi = {
-  /**
-   * Get planner events
-   * GET /planner/events
-   */
-  getEvents: async (params?: { startDate?: string; endDate?: string }) => {
-    // TODO: Replace with actual API call
-    // const queryParams = new URLSearchParams(params as Record<string, string>);
-    // return apiRequest(`/planner/events?${queryParams}`);
-    console.log("API: Get planner events called", params);
-    return [];
+  getEvents: (params?: { startDate?: string; endDate?: string }) => {
+    const q = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(params ?? {}).filter(([, v]) => v != null) as [string, string][],
+      ),
+    ).toString();
+    return request<any>(`/planner/events${q ? '?' + q : ''}`);
   },
 
-  /**
-   * Create planner event
-   * POST /planner/events
-   */
-  createEvent: async (data: Record<string, unknown>) => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/planner/events', {
-    //   method: 'POST',
-    //   body: JSON.stringify(data),
-    // });
-    console.log("API: Create planner event called", data);
-    return { success: true, eventId: "new-event-id" };
-  },
+  createEvent: (data: Record<string, unknown>) =>
+    request<any>('/planner/events', { method: 'POST', body: JSON.stringify(data) }),
 
-  /**
-   * Update planner event
-   * PATCH /planner/events/:id
-   */
-  updateEvent: async (id: string, data: Record<string, unknown>) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/planner/events/${id}`, {
-    //   method: 'PATCH',
-    //   body: JSON.stringify(data),
-    // });
-    console.log("API: Update planner event called", { id, data });
-    return { success: true };
-  },
+  updateEvent: (id: string, data: Record<string, unknown>) =>
+    request<any>(`/planner/events/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 
-  /**
-   * Delete planner event
-   * DELETE /planner/events/:id
-   */
-  deleteEvent: async (id: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/planner/events/${id}`, { method: 'DELETE' });
-    console.log("API: Delete planner event called", { id });
-    return { success: true };
-  },
+  deleteEvent: (id: string) =>
+    request<any>(`/planner/events/${id}`, { method: 'DELETE' }),
 };
 
-// ============================================
-// Study Rooms API
-// ============================================
+// ── Study Rooms ──────────────────────────────────────────────────────────────
 
 export const studyRoomsApi = {
-  /**
-   * Get study rooms
-   * GET /study-rooms
-   */
-  getStudyRooms: async (params?: {
-    buildingId?: string;
-    available?: boolean;
-  }) => {
-    // TODO: Replace with actual API call
-    // const queryParams = new URLSearchParams(params as Record<string, string>);
-    // return apiRequest(`/study-rooms?${queryParams}`);
-    console.log("API: Get study rooms called", params);
-    return [];
+  getStudyRooms: (params?: { buildingId?: string; available?: boolean }) => {
+    const parts: string[] = [];
+    if (params?.buildingId) parts.push(`buildingId=${params.buildingId}`);
+    if (params?.available != null) parts.push(`available=${params.available}`);
+    return request<any>(`/study-rooms${parts.length ? '?' + parts.join('&') : ''}`);
   },
 
-  /**
-   * Get room availability
-   * GET /study-rooms/:id/availability
-   */
-  getRoomAvailability: async (roomId: string, date: string) => {
-    // TODO: Replace with API call later
-    // return apiRequest(`/study-rooms/${roomId}/availability?date=${date}`);
-    console.log("API: Get room availability called", { roomId, date });
-    return [];
-  },
+  getRoomAvailability: (roomId: string, date: string) =>
+    request<any>(`/study-rooms/${roomId}/availability?date=${date}`),
 
-  /**
-   * Book study room
-   * POST /study-rooms/:id/book
-   */
-  bookRoom: async (
-    roomId: string,
-    data: { date: string; startTime: string; endTime: string },
-  ) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/study-rooms/${roomId}/book`, {
-    //   method: 'POST',
-    //   body: JSON.stringify(data),
-    // });
-    console.log("API: Book room called", { roomId, data });
-    return { success: true, bookingId: "new-booking-id" };
-  },
+  bookRoom: (roomId: string, data: { date: string; startTime: string; endTime: string }) =>
+    request<any>(`/study-rooms/${roomId}/book`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
-  /**
-   * Cancel booking
-   * DELETE /study-rooms/bookings/:id
-   */
-  cancelBooking: async (bookingId: string) => {
-    // TODO: Replace with actual API call
-    // return apiRequest(`/study-rooms/bookings/${bookingId}`, { method: 'DELETE' });
-    console.log("API: Cancel booking called", { bookingId });
-    return { success: true };
-  },
+  cancelBooking: (bookingId: string) =>
+    request<any>(`/study-rooms/bookings/${bookingId}`, { method: 'DELETE' }),
 
-  /**
-   * Get user bookings
-   * GET /study-rooms/bookings
-   */
-  getUserBookings: async () => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/study-rooms/bookings');
-    console.log("API: Get user bookings called");
-    return [];
-  },
+  getUserBookings: () => request<any>('/study-rooms/bookings'),
 };
 
-// ============================================
-// Settings API
-// ============================================
+// ── Settings ─────────────────────────────────────────────────────────────────
 
 export const settingsApi = {
-  /**
-   * Get user settings
-   * GET /settings
-   */
-  getSettings: async () => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/settings');
-    console.log("API: Get settings called");
-    return null;
-  },
+  getSettings: () => request<any>('/settings'),
 
-  /**
-   * Update settings
-   * PATCH /settings
-   */
-  updateSettings: async (data: Record<string, unknown>) => {
-    // TODO: Replace with actual API call
-    // return apiRequest('/settings', {
-    //   method: 'PATCH',
-    //   body: JSON.stringify(data),
-    // });
-    console.log("API: Update settings called", data);
-    return { success: true };
-  },
+  updateSettings: (data: Record<string, unknown>) =>
+    request<any>('/settings', { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
-// Export all APIs
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export const notificationsApi = {
+  getNotifications: () => request<any>('/notifications'),
+
+  markAllRead: () => request<any>('/notifications/read-all', { method: 'PATCH' }),
+
+  markRead: (id: string) => request<any>(`/notifications/${id}/read`, { method: 'PATCH' }),
+};
+
+// ── Barrel export ─────────────────────────────────────────────────────────────
+
 export const api = {
   auth: authApi,
   maps: mapsApi,
@@ -624,6 +312,7 @@ export const api = {
   planner: plannerApi,
   studyRooms: studyRoomsApi,
   settings: settingsApi,
+  notifications: notificationsApi,
 };
 
 export default api;

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,16 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
-import { mockStudyRooms } from '../../data/mockData';
 import { StudyRoom } from '../../types';
 import { useColors, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useTranslation } from '../../i18n';
+import { studyRoomsApi } from '../../services/api';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'StudyRooms'>;
@@ -47,8 +48,17 @@ export function StudyRoomsScreen({ navigation }: Props) {
 
   const [noiseFilter, setNoiseFilter] = useState<NoiseFilter>('all');
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+  const [allRooms, setAllRooms] = useState<StudyRoom[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = mockStudyRooms.filter((r) => {
+  useEffect(() => {
+    studyRoomsApi.getStudyRooms()
+      .then((res) => setAllRooms(res.data ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = allRooms.filter((r) => {
     if (showAvailableOnly && !r.isAvailable) return false;
     if (noiseFilter !== 'all' && r.noiseLevel !== noiseFilter) return false;
     return true;
@@ -224,19 +234,23 @@ export function StudyRoomsScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={renderRoom}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="book-outline" size={48} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>{t.studyRooms.noRooms}</Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} />
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          renderItem={renderRoom}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="book-outline" size={48} color={COLORS.textMuted} />
+              <Text style={styles.emptyText}>{t.studyRooms.noRooms}</Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }

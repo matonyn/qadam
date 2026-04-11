@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeStackParamList } from '../../navigation/HomeNavigator';
-import { mockReviews } from '../../data/mockData';
 import { Review } from '../../types';
 import { useColors, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useTranslation } from '../../i18n';
+import { reviewsApi } from '../../services/api';
+import { useAuthStore } from '../../stores/authStore';
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, 'Reviews'>;
@@ -62,14 +63,23 @@ export function ReviewsScreen({ navigation }: Props) {
     negative: { icon: 'sad-outline', color: COLORS.error, label: 'Negative' },
   };
 
+  const user = useAuthStore((state) => state.user);
   const [typeFilter, setTypeFilter] = useState<TargetType>('all');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [reviews, setReviews] = useState(mockReviews);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Add review form state
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
   const [newTarget, setNewTarget] = useState('Library');
+
+  useEffect(() => {
+    reviewsApi.getReviews()
+      .then((res) => setReviews(res.data ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered =
     typeFilter === 'all' ? reviews : reviews.filter((r) => r.targetType === typeFilter);
@@ -79,29 +89,27 @@ export function ReviewsScreen({ navigation }: Props) {
       ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
       : '0.0';
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     if (!newComment.trim()) {
       Alert.alert(t.common.error, t.reviews.errorComment);
       return;
     }
-    const newReview: Review = {
-      id: `rev-${Date.now()}`,
-      userId: 'user-001',
-      userName: 'Aiym A.',
-      targetId: 'bldg-004',
-      targetType: 'building',
-      targetName: newTarget,
-      rating: newRating,
-      comment: newComment.trim(),
-      sentiment: newRating >= 4 ? 'positive' : newRating === 3 ? 'neutral' : 'negative',
-      helpful: 0,
-      createdAt: new Date().toISOString(),
-    };
-    setReviews([newReview, ...reviews]);
-    setShowAddModal(false);
-    setNewComment('');
-    setNewRating(5);
-    Alert.alert(t.reviews.thankYou, t.reviews.reviewSubmitted);
+    try {
+      const res = await reviewsApi.createReview({
+        targetId: 'bldg-004',
+        targetType: 'building',
+        targetName: newTarget,
+        rating: newRating,
+        comment: newComment.trim(),
+      });
+      setReviews([res.data, ...reviews]);
+      setShowAddModal(false);
+      setNewComment('');
+      setNewRating(5);
+      Alert.alert(t.reviews.thankYou, t.reviews.reviewSubmitted);
+    } catch (e) {
+      Alert.alert(t.common.error, 'Failed to submit review.');
+    }
   };
 
   const FILTERS: { key: TargetType; label: string }[] = [

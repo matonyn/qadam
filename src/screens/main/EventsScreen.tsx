@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -18,10 +19,10 @@ import {
   SHADOWS,
   SPACING,
 } from "../../constants/theme";
-import { mockEvents } from "../../data/mockData";
 import { EventsStackParamList } from "../../navigation/EventsNavigator";
 import { CampusEvent } from "../../types";
 import { useTranslation } from "../../i18n";
+import { eventsApi } from "../../services/api";
 
 type Category =
   | "all"
@@ -39,7 +40,16 @@ export function EventsScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<EventsStackParamList>>();
   const [activeCategory, setActiveCategory] = useState<Category>("all");
+  const [allEvents, setAllEvents] = useState<CampusEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const t = useTranslation();
+
+  useEffect(() => {
+    eventsApi.getEvents()
+      .then((res) => setAllEvents(res.data ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const CATEGORY_COLORS: Record<string, string> = {
     academic: COLORS.primary,
@@ -61,8 +71,8 @@ export function EventsScreen() {
 
   const filtered =
     activeCategory === "all"
-      ? mockEvents
-      : mockEvents.filter((e) => e.category === activeCategory);
+      ? allEvents
+      : allEvents.filter((e) => e.category === activeCategory);
 
   const renderEvent = ({ item }: { item: CampusEvent }) => {
     const start = new Date(item.startDate);
@@ -193,23 +203,27 @@ export function EventsScreen() {
       </ScrollView>
 
       {/* Events list */}
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={renderEvent}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons
-              name="calendar-outline"
-              size={48}
-              color={COLORS.textMuted}
-            />
-            <Text style={styles.emptyText}>No events in this category</Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} />
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          renderItem={renderEvent}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons
+                name="calendar-outline"
+                size={48}
+                color={COLORS.textMuted}
+              />
+              <Text style={styles.emptyText}>No events in this category</Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }

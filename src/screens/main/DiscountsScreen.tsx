@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Clipboard from "expo-clipboard";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   ScrollView,
@@ -19,10 +20,10 @@ import {
   SHADOWS,
   SPACING,
 } from "../../constants/theme";
-import { mockDiscounts } from "../../data/mockData";
 import { HomeStackParamList } from "../../navigation/HomeNavigator";
 import { Discount } from "../../types";
 import { useTranslation } from "../../i18n";
+import { discountsApi } from "../../services/api";
 
 type Props = {
   navigation: NativeStackNavigationProp<HomeStackParamList, "Discounts">;
@@ -61,11 +62,20 @@ export function DiscountsScreen({ navigation }: Props) {
   };
 
   const [activeCategory, setActiveCategory] = useState<Category>("all");
+  const [allDiscounts, setAllDiscounts] = useState<Discount[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    discountsApi.getDiscounts()
+      .then((res) => setAllDiscounts(res.data ?? []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered =
     activeCategory === "all"
-      ? mockDiscounts
-      : mockDiscounts.filter((d) => d.category === activeCategory);
+      ? allDiscounts
+      : allDiscounts.filter((d) => d.category === activeCategory);
 
   const copyCode = (code: string, vendorName: string) => {
     Clipboard.setStringAsync(code);
@@ -180,7 +190,7 @@ export function DiscountsScreen({ navigation }: Props) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t.discounts.title}</Text>
         <View style={styles.countBadge}>
-          <Text style={styles.countText}>{mockDiscounts.length}</Text>
+          <Text style={styles.countText}>{allDiscounts.length}</Text>
         </View>
       </View>
 
@@ -215,6 +225,9 @@ export function DiscountsScreen({ navigation }: Props) {
         })}
       </ScrollView>
 
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.primary} />
+      ) : null}
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
@@ -222,14 +235,16 @@ export function DiscountsScreen({ navigation }: Props) {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons
-              name="pricetag-outline"
-              size={48}
-              color={COLORS.textMuted}
-            />
-            <Text style={styles.emptyText}>{t.discounts.noDiscounts}</Text>
-          </View>
+          loading ? null : (
+            <View style={styles.empty}>
+              <Ionicons
+                name="pricetag-outline"
+                size={48}
+                color={COLORS.textMuted}
+              />
+              <Text style={styles.emptyText}>{t.discounts.noDiscounts}</Text>
+            </View>
+          )
         }
       />
     </SafeAreaView>

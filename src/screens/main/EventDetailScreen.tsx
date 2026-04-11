@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { EventsStackParamList } from '../../navigation/EventsNavigator';
-import { mockEvents } from '../../data/mockData';
+import { eventsApi } from '../../services/api';
 import { useColors, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useTranslation } from '../../i18n';
 
@@ -45,7 +46,28 @@ export function EventDetailScreen({ navigation, route }: Props) {
   };
 
   const { eventId } = route.params;
-  const event = mockEvents.find((e) => e.id === eventId);
+  const [event, setEvent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    eventsApi.getEvent(eventId)
+      .then((res) => setEvent(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [eventId]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.notFound}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!event) {
     return (
@@ -79,7 +101,9 @@ export function EventDetailScreen({ navigation, route }: Props) {
         {
           text: t.eventDetail.registerNow,
           onPress: () =>
-            Alert.alert(t.eventDetail.registered, t.eventDetail.registeredMsg),
+            eventsApi.registerForEvent(eventId)
+              .then(() => Alert.alert(t.eventDetail.registered, t.eventDetail.registeredMsg))
+              .catch(() => Alert.alert(t.common.error, 'Could not register. You may already be registered.')),
         },
       ]
     );

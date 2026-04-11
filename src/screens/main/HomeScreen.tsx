@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,16 +18,12 @@ import {
   SPACING,
   useColors,
 } from "../../constants/theme";
-import {
-  mockAcademicPlan,
-  mockDiscounts,
-  mockEvents,
-  mockPlannerEvents,
-  mockStudyRooms,
-} from "../../data/mockData";
 import { useTranslation } from "../../i18n";
 import { HomeStackParamList } from "../../navigation/HomeNavigator";
+import { academicApi, discountsApi, eventsApi, studyRoomsApi } from "../../services/api";
 import { useAuthStore } from "../../stores/authStore";
+
+const COURSE_COLORS = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#6366F1'];
 
 export function HomeScreen() {
   const user = useAuthStore((state) => state.user);
@@ -36,6 +33,44 @@ export function HomeScreen() {
   const COLORS = useColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
 
+  const [plan, setPlan] = useState<any>(null);
+  const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [availableRooms, setAvailableRooms] = useState(0);
+  const [activeDiscounts, setActiveDiscounts] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    Promise.all([
+      academicApi.getAcademicPlan(),
+      academicApi.getSchedule(today),
+      eventsApi.getEvents(),
+      studyRoomsApi.getStudyRooms({ available: true }),
+      discountsApi.getDiscounts(),
+    ])
+      .then(([planRes, scheduleRes, eventsRes, roomsRes, discountsRes]) => {
+        setPlan(planRes.data);
+        setUpcomingClasses(
+          (scheduleRes.data ?? []).flatMap((course: any, idx: number) =>
+            (course.schedule ?? []).map((sched: any) => ({
+              id: `${course.id}-${sched.day}`,
+              title: `${course.code} – ${course.name}`,
+              startTime: sched.startTime,
+              endTime: sched.endTime,
+              location: `Room ${sched.room}`,
+              color: COURSE_COLORS[idx % COURSE_COLORS.length],
+            }))
+          ).slice(0, 2),
+        );
+        setUpcomingEvents((eventsRes.data ?? []).slice(0, 2));
+        setAvailableRooms((roomsRes.data ?? []).length);
+        setActiveDiscounts((discountsRes.data ?? []).length);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
   const hour = new Date().getHours();
   const greeting =
     hour < 12
@@ -43,13 +78,6 @@ export function HomeScreen() {
       : hour < 17
         ? t.greeting.afternoon
         : t.greeting.evening;
-
-  const upcomingClasses = mockPlannerEvents
-    .filter((e) => e.type === "class")
-    .slice(0, 2);
-  const upcomingEvents = mockEvents.slice(0, 2);
-  const availableRooms = mockStudyRooms.filter((r) => r.isAvailable).length;
-  const activeDiscounts = mockDiscounts.length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -91,25 +119,30 @@ export function HomeScreen() {
 
         {/* GPA Card */}
         <View style={styles.gpaCard}>
-          <View style={styles.gpaItem}>
-            <Text style={styles.gpaLabel}>{t.home.gpa}</Text>
-            <Text style={styles.gpaValue}>
-              {mockAcademicPlan.gpa.toFixed(2)}
-            </Text>
-          </View>
-          <View style={styles.gpaDivider} />
-          <View style={styles.gpaItem}>
-            <Text style={styles.gpaLabel}>{t.home.standing}</Text>
-            <Text style={styles.gpaStanding}>{t.home.deansList}</Text>
-          </View>
-          <View style={styles.gpaDivider} />
-          <View style={styles.gpaItem}>
-            <Text style={styles.gpaLabel}>{t.home.credits}</Text>
-            <Text style={styles.gpaCredits}>
-              {mockAcademicPlan.creditsCompleted}/
-              {mockAcademicPlan.totalCreditsRequired}
-            </Text>
-          </View>
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <>
+              <View style={styles.gpaItem}>
+                <Text style={styles.gpaLabel}>{t.home.gpa}</Text>
+                <Text style={styles.gpaValue}>
+                  {plan ? plan.gpa.toFixed(2) : '—'}
+                </Text>
+              </View>
+              <View style={styles.gpaDivider} />
+              <View style={styles.gpaItem}>
+                <Text style={styles.gpaLabel}>{t.home.standing}</Text>
+                <Text style={styles.gpaStanding}>{t.home.deansList}</Text>
+              </View>
+              <View style={styles.gpaDivider} />
+              <View style={styles.gpaItem}>
+                <Text style={styles.gpaLabel}>{t.home.credits}</Text>
+                <Text style={styles.gpaCredits}>
+                  {plan ? `${plan.creditsCompleted}/${plan.totalCreditsRequired}` : '—'}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Navigate CTA */}
