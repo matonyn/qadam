@@ -58,7 +58,8 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
     if (!validate()) return;
     const success = await login(email, password);
     if (!success) {
-      Alert.alert(t.auth.loginFailed, t.auth.loginFailedMsg);
+      const msg = useAuthStore.getState().authError;
+      Alert.alert(t.auth.loginFailed, msg ?? t.auth.loginFailedMsg);
     }
   };
 

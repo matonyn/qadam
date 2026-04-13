@@ -4,7 +4,7 @@ import { MapScreen } from '../screens/main/MapScreen';
 import { BuildingDetailScreen } from '../screens/main/BuildingDetailScreen';
 
 export type NavigateStackParamList = {
-  Map: undefined;
+  Map: { startRouteToBuildingId?: string } | undefined;
   BuildingDetail: { buildingId: string };
 };
 

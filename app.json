@@ -4,11 +4,9 @@
     "slug": "qadam-campus-navigation",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "sdkVersion": "54.0.0",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#1E3A8A"
     },
@@ -20,12 +18,15 @@
       "bundleIdentifier": "com.qadam.campusnavigation",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Qadam needs access to your location to provide navigation assistance.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Qadam needs access to your location to provide real-time navigation."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Qadam needs access to your location to provide real-time navigation.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1E3A8A"
       },
       "package": "com.qadam.campusnavigation",
@@ -34,9 +35,7 @@
         "ACCESS_FINE_LOCATION"
       ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+    "web": {},
     "plugins": [
       [
         "expo-location",

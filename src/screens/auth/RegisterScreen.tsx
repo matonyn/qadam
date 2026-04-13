@@ -116,7 +116,8 @@ export function RegisterScreen({ navigation }: RegisterScreenProps) {
     );
 
     if (!success) {
-      Alert.alert(t.common.error, t.common.error);
+      const msg = useAuthStore.getState().authError;
+      Alert.alert(t.common.error, msg ?? t.common.error);
     }
   };
 

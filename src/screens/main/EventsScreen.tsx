@@ -154,7 +154,13 @@ export function EventsScreen() {
           </View>
 
           {item.isRegistrationRequired && (
-            <TouchableOpacity style={styles.rsvpBtn} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.rsvpBtn}
+              activeOpacity={0.85}
+              onPress={() =>
+                navigation.navigate('EventDetail', { eventId: item.id, openRegister: true })
+              }
+            >
               <Text style={styles.rsvpText}>{t.events.register}</Text>
               <Ionicons name="arrow-forward" size={14} color={COLORS.surface} />
             </TouchableOpacity>
@@ -168,7 +174,29 @@ export function EventsScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t.events.title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+          <Text style={styles.headerTitle}>{t.events.title}</Text>
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              paddingHorizontal: SPACING.md,
+              paddingVertical: SPACING.sm,
+              borderRadius: BORDER_RADIUS.full,
+              borderWidth: 1.5,
+              borderColor: COLORS.primary,
+              backgroundColor: COLORS.primary + '10',
+            }}
+            onPress={() => navigation.navigate('Calendar')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="calendar-outline" size={16} color={COLORS.primary} />
+            <Text style={{ fontSize: FONT_SIZE.sm, fontWeight: '700', color: COLORS.primary }}>
+              {t.events.calendarView}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Category filter */}

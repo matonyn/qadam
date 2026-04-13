@@ -8,6 +8,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,6 +25,35 @@ type Props = {
 };
 
 type NoiseFilter = 'all' | 'quiet' | 'moderate' | 'collaborative';
+
+type TimeSlot = { startTime: string; endTime: string; available: boolean };
+
+function localDateISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function hhmmToMin(t: string): number {
+  const [h, mm] = t.split(':').map(Number);
+  return h * 60 + mm;
+}
+
+function minToHhmm(m: number): string {
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+function rangeFree(slots: TimeSlot[], startT: string, endT: string): boolean {
+  const s0 = hhmmToMin(startT);
+  const s1 = hhmmToMin(endT);
+  for (let t = s0; t < s1; t += 30) {
+    const key = minToHhmm(t);
+    const sl = slots.find((x) => x.startTime === key);
+    if (!sl || !sl.available) return false;
+  }
+  return true;
+}
 
 const AMENITY_ICONS: Record<string, string> = {
   'Wi-Fi': 'wifi-outline',
@@ -51,12 +82,91 @@ export function StudyRoomsScreen({ navigation }: Props) {
   const [allRooms, setAllRooms] = useState<StudyRoom[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [bookVisible, setBookVisible] = useState(false);
+  const [bookRoom, setBookRoom] = useState<StudyRoom | null>(null);
+  const [bookDate, setBookDate] = useState(() => localDateISO(new Date()));
+  const [slots, setSlots] = useState<TimeSlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [bookStart, setBookStart] = useState('');
+  const [bookEnd, setBookEnd] = useState('');
+  const [bookingSubmit, setBookingSubmit] = useState(false);
+
+  const refreshRooms = () => {
+    studyRoomsApi
+      .getStudyRooms()
+      .then((res) => setAllRooms(res.data ?? []))
+      .catch(console.error);
+  };
+
   useEffect(() => {
-    studyRoomsApi.getStudyRooms()
+    setLoading(true);
+    studyRoomsApi
+      .getStudyRooms()
       .then((res) => setAllRooms(res.data ?? []))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  const loadSlotsForRoom = (room: StudyRoom, date: string) => {
+    setSlotsLoading(true);
+    setSlots([]);
+    setBookStart('');
+    setBookEnd('');
+    studyRoomsApi
+      .getRoomAvailability(room.id, date)
+      .then((res) => setSlots(res.data ?? []))
+      .catch(() => setSlots([]))
+      .finally(() => setSlotsLoading(false));
+  };
+
+  useEffect(() => {
+    if (bookVisible && bookRoom) {
+      loadSlotsForRoom(bookRoom, bookDate);
+    }
+  }, [bookVisible, bookRoom, bookDate]);
+
+  const validEndTimes = useMemo(() => {
+    if (!bookStart || !slots.length) return [];
+    const starts: string[] = [];
+    for (const dur of [30, 60, 90, 120]) {
+      const end = minToHhmm(hhmmToMin(bookStart) + dur);
+      if (rangeFree(slots, bookStart, end)) starts.push(end);
+    }
+    return starts;
+  }, [bookStart, slots]);
+
+  const openBook = (room: StudyRoom) => {
+    setBookRoom(room);
+    setBookDate(localDateISO(new Date()));
+    setBookVisible(true);
+  };
+
+  const closeBook = () => {
+    if (bookingSubmit) return;
+    setBookVisible(false);
+    setBookRoom(null);
+    setSlots([]);
+    setBookStart('');
+    setBookEnd('');
+  };
+
+  const confirmBooking = () => {
+    if (!bookRoom || !bookStart || !bookEnd) return;
+    setBookingSubmit(true);
+    studyRoomsApi
+      .bookRoom(bookRoom.id, { date: bookDate, startTime: bookStart, endTime: bookEnd })
+      .then(() => {
+        setBookVisible(false);
+        setBookRoom(null);
+        Alert.alert(t.studyRooms.booked, `${bookRoom.name} · ${bookStart}–${bookEnd}`);
+        refreshRooms();
+      })
+      .catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : String(e);
+        Alert.alert(t.common.error, msg || t.studyRooms.bookingFailed);
+      })
+      .finally(() => setBookingSubmit(false));
+  };
 
   const filtered = allRooms.filter((r) => {
     if (showAvailableOnly && !r.isAvailable) return false;
@@ -64,20 +174,10 @@ export function StudyRoomsScreen({ navigation }: Props) {
     return true;
   });
 
-  const handleBook = (room: StudyRoom) => {
-    Alert.alert(
-      t.studyRooms.bookTitle,
-      `${t.studyRooms.bookNow} ${room.name}?`,
-      [
-        { text: t.common.cancel, style: 'cancel' },
-        {
-          text: t.studyRooms.confirm,
-          onPress: () =>
-            Alert.alert(t.studyRooms.booked, `${room.name} has been reserved for you.`),
-        },
-      ]
-    );
-  };
+  const todayStr = localDateISO(new Date());
+  const tomorrowD = new Date();
+  tomorrowD.setDate(tomorrowD.getDate() + 1);
+  const tomorrowStr = localDateISO(tomorrowD);
 
   const renderRoom = ({ item }: { item: StudyRoom }) => {
     const noise = NOISE_CONFIG[item.noiseLevel];
@@ -156,7 +256,7 @@ export function StudyRoomsScreen({ navigation }: Props) {
         {/* Book button */}
         <TouchableOpacity
           style={[styles.bookBtn, !item.isAvailable && styles.bookBtnDisabled]}
-          onPress={() => item.isAvailable && handleBook(item)}
+          onPress={() => item.isAvailable && openBook(item)}
           disabled={!item.isAvailable}
           activeOpacity={0.8}
         >
@@ -251,6 +351,111 @@ export function StudyRoomsScreen({ navigation }: Props) {
           }
         />
       )}
+
+      <Modal visible={bookVisible} animationType="slide" transparent onRequestClose={closeBook}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalBackdrop} onPress={closeBook} />
+          <View style={[styles.modalSheet, { backgroundColor: COLORS.surface }]}>
+            <View style={styles.modalHandle} />
+            <Text style={[styles.modalTitle, { color: COLORS.text }]}>{t.studyRooms.bookTitle}</Text>
+            {bookRoom ? (
+              <Text style={[styles.modalSubtitle, { color: COLORS.textSecondary }]} numberOfLines={2}>
+                {bookRoom.name} · {bookRoom.buildingName}
+              </Text>
+            ) : null}
+
+            <Text style={[styles.modalHint, { color: COLORS.textMuted }]}>{t.studyRooms.maxTwoHours}</Text>
+
+            <View style={styles.dateRow}>
+              <TouchableOpacity
+                style={[styles.dateChip, bookDate === todayStr && styles.dateChipActive]}
+                onPress={() => setBookDate(todayStr)}
+              >
+                <Text style={[styles.dateChipText, bookDate === todayStr && styles.dateChipTextActive]}>
+                  {t.studyRooms.today}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dateChip, bookDate === tomorrowStr && styles.dateChipActive]}
+                onPress={() => setBookDate(tomorrowStr)}
+              >
+                <Text style={[styles.dateChipText, bookDate === tomorrowStr && styles.dateChipTextActive]}>
+                  {t.studyRooms.tomorrow}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {slotsLoading ? (
+              <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={COLORS.primary} />
+            ) : (
+              <>
+                <Text style={[styles.fieldLabel, { color: COLORS.text }]}>{t.studyRooms.startTime}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.slotRow}>
+                  {slots
+                    .filter((s) => s.available)
+                    .map((s) => {
+                      const active = bookStart === s.startTime;
+                      return (
+                        <TouchableOpacity
+                          key={s.startTime}
+                          style={[styles.slotChip, active && { backgroundColor: COLORS.primary }]}
+                          onPress={() => {
+                            setBookStart(s.startTime);
+                            const ends: string[] = [];
+                            for (const dur of [30, 60, 90, 120]) {
+                              const end = minToHhmm(hhmmToMin(s.startTime) + dur);
+                              if (rangeFree(slots, s.startTime, end)) ends.push(end);
+                            }
+                            setBookEnd(ends[0] ?? '');
+                          }}
+                        >
+                          <Text style={[styles.slotChipText, active && { color: COLORS.surface }]}>{s.startTime}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                </ScrollView>
+
+                <Text style={[styles.fieldLabel, { color: COLORS.text }]}>{t.studyRooms.endTime}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.slotRow}>
+                  {validEndTimes.map((end) => {
+                    const active = bookEnd === end;
+                    return (
+                      <TouchableOpacity
+                        key={end}
+                        style={[styles.slotChip, active && { backgroundColor: COLORS.primary }]}
+                        onPress={() => setBookEnd(end)}
+                        disabled={!bookStart}
+                      >
+                        <Text style={[styles.slotChipText, active && { color: COLORS.surface }]}>{end}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.modalBtnSecondary, { borderColor: COLORS.borderLight }]} onPress={closeBook}>
+                <Text style={{ color: COLORS.textSecondary, fontWeight: '700' }}>{t.common.cancel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalBtnPrimary,
+                  { backgroundColor: COLORS.primary, opacity: !bookStart || !bookEnd || bookingSubmit ? 0.5 : 1 },
+                ]}
+                disabled={!bookStart || !bookEnd || bookingSubmit}
+                onPress={confirmBooking}
+              >
+                {bookingSubmit ? (
+                  <ActivityIndicator color={COLORS.surface} />
+                ) : (
+                  <Text style={{ color: COLORS.surface, fontWeight: '800' }}>{t.studyRooms.confirm}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -403,4 +608,55 @@ function makeStyles(COLORS: ReturnType<typeof useColors>) { return StyleSheet.cr
   bookTextDisabled: { color: COLORS.textMuted },
   empty: { alignItems: 'center', paddingTop: SPACING.xxl, gap: SPACING.md },
   emptyText: { fontSize: FONT_SIZE.md, color: COLORS.textMuted },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  modalSheet: {
+    borderTopLeftRadius: BORDER_RADIUS.xl,
+    borderTopRightRadius: BORDER_RADIUS.xl,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xxl,
+    paddingTop: SPACING.sm,
+    maxHeight: '88%',
+  },
+  modalHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.borderLight,
+    marginBottom: SPACING.md,
+  },
+  modalTitle: { fontSize: FONT_SIZE.lg, fontWeight: '800' },
+  modalSubtitle: { fontSize: FONT_SIZE.sm, marginTop: 4, marginBottom: SPACING.sm },
+  modalHint: { fontSize: FONT_SIZE.xs, marginBottom: SPACING.md },
+  dateRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.md },
+  dateChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.borderLight,
+  },
+  dateChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  dateChipText: { fontSize: FONT_SIZE.sm, fontWeight: '700', color: COLORS.textSecondary },
+  dateChipTextActive: { color: COLORS.surface },
+  fieldLabel: { fontSize: FONT_SIZE.sm, fontWeight: '700', marginBottom: SPACING.sm },
+  slotRow: { gap: SPACING.sm, paddingBottom: SPACING.md },
+  slotChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDER_RADIUS.full,
+    backgroundColor: COLORS.surfaceVariant,
+  },
+  slotChipText: { fontSize: FONT_SIZE.sm, fontWeight: '700', color: COLORS.text },
+  modalActions: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
+  modalBtnSecondary: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1.5,
+  },
+  modalBtnPrimary: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: SPACING.md, borderRadius: BORDER_RADIUS.lg },
 }); }

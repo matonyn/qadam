@@ -5,9 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
-  Linking,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -103,28 +100,8 @@ export function BuildingDetailScreen({ navigation, route }: Props) {
       ? (buildingReviews.reduce((s, r) => s + r.rating, 0) / buildingReviews.length).toFixed(1)
       : null;
 
-  const handleNavigate = async () => {
-    const { latitude, longitude } = building;
-
-    // 2GIS deep link (lng,lat order), web fallback
-    const twoGisApp = `dgis://2gis.ru/routeSearch/rsType/pedestrian/to/${longitude},${latitude}`;
-    const twoGisWeb = `https://2gis.kz/directions/pedestrian/to/${longitude},${latitude}`;
-    const appleMapsUrl = `maps://maps.apple.com/?daddr=${latitude},${longitude}&dirflg=w`;
-
-    try {
-      const canOpen2Gis = await Linking.canOpenURL(twoGisApp);
-      if (canOpen2Gis) {
-        await Linking.openURL(twoGisApp);
-        return;
-      }
-      if (Platform.OS === 'ios') {
-        await Linking.openURL(appleMapsUrl);
-        return;
-      }
-      await Linking.openURL(twoGisWeb);
-    } catch {
-      Alert.alert(t.common.error, t.buildingDetail.errorMaps);
-    }
+  const handleNavigate = () => {
+    navigation.navigate('Map', { startRouteToBuildingId: building.id });
   };
 
   return (

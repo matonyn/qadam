@@ -61,36 +61,26 @@ src/
 - Уведомления (настоящие фейковые!)
 - Настройки (язык, тема, уведомления, доступность)
 
-## Все экраны сейчас фигачат mock data из `src/data/mockData.ts`. Бэкенда нет - свобода без commitав
+## Backend API
 
-## What's Left — Connecting the Backend 🔌
+HTTP клиент: `src/services/api.ts`. Контракт ответов: **`qadam-api-spec.json`**.
 
-Все функции API лежат мёртвым грузом в `src/services/api.ts`.  
-Как выглядит “правильный” ответ? смотри **`qadam-api-spec.json`** (в корне).  
-это к юэкендеру
+### Если видишь `Network error` / `Network request failed`
 
-### Step-by-step
+1. **Бэкенд слушает все интерфейсы:**  
+   `uvicorn app.main:app --host 0.0.0.0 --port 8000` (из папки `qadam-backend`).
+2. **Expo Go на телефоне:** в корне проекта создай `.env` (см. `.env.example`):
+   `EXPO_PUBLIC_API_URL=http://ТВОЙ_LAN_IP:8000`  
+   Узнать IP (Mac, Wi‑Fi): `ipconfig getifaddr en0`. Телефон и компьютер в одной сети.
+3. **Перезапусти Metro с очисткой кэша:** `npx expo start -c` (иначе `.env` не подхватится).
+4. **Без `.env`:** по умолчанию iOS Simulator / web → `localhost:8000`, Android Emulator → `10.0.2.2:8000`. На физическом устройстве `localhost` не сработает.
+5. **Сборка iOS (не Expo Go):** в `app.json` уже включено `NSAllowsLocalNetworking` для HTTP к локальной сети.
 
-**1. Укажи API BASE URL (иначе будет localhost forever):**
+### Step-by-step (экраны и моки)
 
-В `src/services/api.ts` на строке 8:
+**1. Токены уже в `api.ts`** (`tokenManager` + `Authorization`).
 
-```ts
-const API_BASE_URL = "https://your-api-domain.com/api/v1"; // поменяй на настоящую ссылку!!
-```
-
-**2. Впихни токен в каждый запрос**
-
-Распакуй (разкомментируй) "token" блок внутри `apiRequest()` (строки 22–25) и реализуй `getAuthToken()` чтобы юзать чудо из authStore:
-
-```ts
-import { useAuthStore } from "../stores/authStore";
-// внутри apiRequest:
-const token = useAuthStore.getState().token;
-if (token) defaultHeaders["Authorization"] = `Bearer ${token}`;
-```
-
-**3. Меняй stubs на нормальные вызовы**
+**2. Меняй stubs на нормальные вызовы**
 
 Сейчас функции выглядят вот так (претендуют на излишнюю простоту):
 
@@ -110,7 +100,7 @@ getBuildings: async () => {
 },
 ```
 
-**4. Подключай экраны к API**
+**3. Подключай экраны к API**
 
 Сейчас экраны берут данные напрямую из `mockData`.  
 Переходи на реальный API внутри `useEffect`! Вот примерчик для MapScreen:
@@ -126,7 +116,7 @@ useEffect(() => {
 }, []);
 ```
 
-**5. Login — забирай токен и юзера**
+**4. Login — забирай токен и юзера**
 
 В `authStore` есть action `login(user)`. После API вызова:
 
@@ -136,7 +126,7 @@ useAuthStore.getState().login(data.user);
 // не забудь куда-то надёжно прятать data.accessToken + data.refreshToken
 ```
 
-**6. Первыми подключаем эти эндпоинты:**
+**5. Первыми подключаем эти эндпоинты:**
 
 | Приоритет | Endpoint                                               | Зачем нужно?                    |
 | --------- | ------------------------------------------------------ | ------------------------------- |
@@ -157,7 +147,7 @@ useAuthStore.getState().login(data.user);
 
 | За что     | Чем пользуемся                     |
 | ---------- | ---------------------------------- |
-| Framework  | React Native + Expo SDK 52         |
+| Framework  | React Native + Expo SDK 54         |
 | Language   | TypeScript                         |
 | Navigation | React Navigation 6                 |
 | State      | Zustand 4.5 + persist middleware   |

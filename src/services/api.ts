@@ -1,15 +1,55 @@
 /**
  * API Service Layer — real HTTP calls to the Qadam backend.
  *
- * Base URL:
- *   iOS Simulator / web:  http://localhost:8000/api/v1
- *   Android Emulator:     http://10.0.2.2:8000/api/v1
- *   Physical device:      http://<your-machine-ip>:8000/api/v1
+ * Set EXPO_PUBLIC_API_URL in a root `.env` (no secrets here), then restart Expo:
+ *   EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:8000
+ * (omit /api/v1 — it is appended automatically)
+ *
+ * Physical phone checklist:
+ *   - Phone + computer on same Wi‑Fi
+ *   - Use the computer's LAN IP (not localhost / 127.0.0.1)
+ *   - Run: uvicorn app.main:app --host 0.0.0.0 --port 8000
+ *
+ * Refs: iOS Simulator / web → http://localhost:8000
+ *       Android Emulator → http://10.0.2.2:8000
+ *
+ * Supabase (see root `.env.example`):
+ *   EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
  */
 
+import { Platform } from 'react-native';
+
+import type {
+  ApiResponse,
+  EventRegistrationInfo,
+  EventRegistrationStatus,
+  RegisteredCampusEvent,
+} from '../types';
 import { tokenManager } from './tokenManager';
 
-export const API_BASE_URL = 'http://192.168.1.151:8000/api/v1';
+/** When EXPO_PUBLIC_API_URL is unset: simulators/emulators can reach the host; real devices cannot — set .env. */
+function defaultDevApiOrigin(): string {
+  if (Platform.OS === 'android') {
+    // Android emulator → host machine (not localhost inside the VM)
+    return 'http://10.0.2.2:8000';
+  }
+  // iOS Simulator, web, and dev clients that tunnel host (often localhost works for iOS sim)
+  return 'http://localhost:8000';
+}
+
+function resolveApiBaseUrl(): string {
+  const raw = process.env.EXPO_PUBLIC_API_URL?.trim();
+  const origin = raw
+    ? raw.replace(/\/+$/, '')
+    : `${defaultDevApiOrigin().replace(/\/+$/, '')}`;
+  return origin.endsWith('/api/v1') ? origin : `${origin}/api/v1`;
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
+
+if (__DEV__) {
+  console.log('[api] API_BASE_URL =', API_BASE_URL);
+}
 
 // ── Core fetch wrapper ───────────────────────────────────────────────────────
 
@@ -26,7 +66,19 @@ async function request<T>(
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    const hint =
+      Platform.OS !== 'web' && !process.env.EXPO_PUBLIC_API_URL?.trim()
+        ? ' On a physical phone, create root `.env` with EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_LAN_IP:8000 (find IP: Mac `ipconfig getifaddr en0`), same Wi‑Fi, `npx expo start -c`.'
+        : '';
+    throw new Error(
+      `Network error (${reason}). Base URL: ${API_BASE_URL}.${hint} Run backend: uvicorn app.main:app --host 0.0.0.0 --port 8000. See README (Network error).`,
+    );
+  }
 
   // Auto-refresh on 401
   if (res.status === 401 && retry) {
@@ -129,6 +181,8 @@ export const routingApi = {
     endLat: number;
     endLng: number;
     preference: 'shortest' | 'accessible' | 'least_crowded';
+    startBuildingId?: string;
+    endBuildingId?: string;
   }) =>
     request<any>('/routing/calculate', {
       method: 'POST',
@@ -164,8 +218,23 @@ export const eventsApi = {
 
   getEvent: (id: string) => request<any>(`/events/${id}`),
 
+  getMyEventRegistration: (eventId: string) =>
+    request<ApiResponse<EventRegistrationStatus>>(`/events/${eventId}/registration`),
+
   registerForEvent: (eventId: string) =>
-    request<any>(`/events/${eventId}/register`, { method: 'POST' }),
+    request<ApiResponse<EventRegistrationInfo>>(`/events/${eventId}/register`, { method: 'POST' }),
+
+  unregisterFromEvent: (eventId: string) =>
+    request<ApiResponse<null>>(`/events/${eventId}/register`, { method: 'DELETE' }),
+
+  getRegisteredEvents: (params?: { startDate?: string; endDate?: string }) => {
+    const q = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(params ?? {}).filter(([, v]) => v != null) as [string, string][],
+      ),
+    ).toString();
+    return request<ApiResponse<RegisteredCampusEvent[]>>(`/events/registered${q ? '?' + q : ''}`);
+  },
 };
 
 // ── Discounts ────────────────────────────────────────────────────────────────

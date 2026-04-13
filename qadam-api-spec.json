@@ -432,13 +432,15 @@
       "calculateRoute": {
         "method": "POST",
         "path": "/routing/calculate",
-        "description": "Calculate a walking route between two GPS points on campus. preference controls route type: shortest = fewest meters, accessible = ramps + elevators only, least_crowded = avoids busy areas.",
+        "description": "Pedestrian route on the NU campus walk network (plaza / mall graph + building links), similar in spirit to 2GIS pedestrian mode. Coordinates are required; optional startBuildingId and endBuildingId snap labels and accessibility to catalog buildings.",
         "auth": true,
         "requestBody": {
           "startLat": 51.0906,
           "startLng": 71.3989,
           "endLat": 51.0904,
           "endLng": 71.4001,
+          "startBuildingId": "bldg-001",
+          "endBuildingId": "bldg-004",
           "preference": "accessible"
         },
         "preferenceValues": ["shortest", "accessible", "least_crowded"],

@@ -13,14 +13,22 @@ const DEFAULT_SETTINGS: UserSettings = {
   theme: 'light',
 };
 
+function authFailureMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  return String(e);
+}
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** Last login/register error (e.g. network or API message); not persisted */
+  authError: string | null;
   settings: UserSettings;
   _hasHydrated: boolean;
 
   setHasHydrated: (v: boolean) => void;
+  clearAuthError: () => void;
   login: (email: string, password: string) => Promise<boolean>;
   register: (
     email: string,
@@ -47,13 +55,15 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      authError: null,
       settings: DEFAULT_SETTINGS,
       _hasHydrated: false,
 
       setHasHydrated: (v) => set({ _hasHydrated: v }),
+      clearAuthError: () => set({ authError: null }),
 
       login: async (email, password) => {
-        set({ isLoading: true });
+        set({ isLoading: true, authError: null });
         try {
           const res = await authApi.login(email, password);
           const { accessToken, refreshToken, user } = res.data;
@@ -76,13 +86,13 @@ export const useAuthStore = create<AuthState>()(
           get().syncSettings();
           return true;
         } catch (e) {
-          set({ isLoading: false });
+          set({ isLoading: false, authError: authFailureMessage(e) });
           return false;
         }
       },
 
       register: async (email, password, firstName, lastName, studentId) => {
-        set({ isLoading: true });
+        set({ isLoading: true, authError: null });
         try {
           const res = await authApi.register({ email, password, firstName, lastName, studentId });
           const { accessToken, refreshToken, user } = res.data;
@@ -104,7 +114,7 @@ export const useAuthStore = create<AuthState>()(
           get().syncSettings();
           return true;
         } catch (e) {
-          set({ isLoading: false });
+          set({ isLoading: false, authError: authFailureMessage(e) });
           return false;
         }
       },

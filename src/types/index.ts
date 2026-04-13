@@ -64,6 +64,22 @@ export interface CampusEvent {
   registrationUrl?: string;
 }
 
+export interface EventRegistrationInfo {
+  registrationId: string;
+  eventId: string;
+  userId: string;
+  registeredAt: string;
+}
+
+export interface EventRegistrationStatus {
+  isRegistered: boolean;
+  registration?: EventRegistrationInfo;
+}
+
+export type RegisteredCampusEvent = CampusEvent & {
+  registeredAt: string;
+};
+
 // Discounts
 export interface Discount {
   id: string;
