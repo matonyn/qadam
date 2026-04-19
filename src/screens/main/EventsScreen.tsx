@@ -75,8 +75,13 @@ export function EventsScreen() {
       : allEvents.filter((e) => e.category === activeCategory);
 
   const renderEvent = ({ item }: { item: CampusEvent }) => {
-    const start = new Date(item.startDate);
-    const end = new Date(item.endDate);
+    const raw = item as any;
+    const startRaw = item.startDate ?? raw.start_date ?? raw.date ?? raw.startTime ?? raw.start_time;
+    const endRaw = item.endDate ?? raw.end_date ?? raw.endTime ?? raw.end_time;
+    const start = startRaw ? new Date(startRaw) : null;
+    const end = endRaw ? new Date(endRaw) : null;
+    const validStart = start && !isNaN(start.getTime());
+    const validEnd = end && !isNaN(end.getTime());
     const categoryColor = CATEGORY_COLORS[item.category] ?? COLORS.textMuted;
 
     const formatTime = (d: Date) =>
@@ -95,9 +100,9 @@ export function EventsScreen() {
         {/* Date sidebar */}
         <View style={[styles.dateSidebar, { backgroundColor: categoryColor }]}>
           <Text style={styles.dateMonth}>
-            {start.toLocaleString("en", { month: "short" }).toUpperCase()}
+            {validStart ? start!.toLocaleString("en", { month: "short" }).toUpperCase() : '—'}
           </Text>
-          <Text style={styles.dateDay}>{start.getDate()}</Text>
+          <Text style={styles.dateDay}>{validStart ? start!.getDate() : '?'}</Text>
         </View>
 
         {/* Content */}
@@ -140,7 +145,7 @@ export function EventsScreen() {
                 color={COLORS.textSecondary}
               />
               <Text style={styles.metaText}>
-                {formatTime(start)} – {formatTime(end)}
+                {validStart ? formatTime(start!) : '—'} – {validEnd ? formatTime(end!) : '—'}
               </Text>
             </View>
             <View style={styles.metaRow}>

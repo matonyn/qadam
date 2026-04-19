@@ -180,8 +180,8 @@ export function StudyRoomsScreen({ navigation }: Props) {
   const tomorrowStr = localDateISO(tomorrowD);
 
   const renderRoom = ({ item }: { item: StudyRoom }) => {
-    const noise = NOISE_CONFIG[item.noiseLevel];
-    const occupancyPct = Math.round((item.currentOccupancy / item.capacity) * 100);
+    const noise = NOISE_CONFIG[item.noiseLevel] ?? NOISE_CONFIG.moderate;
+    const occupancyPct = item.capacity > 0 ? Math.round((item.currentOccupancy / item.capacity) * 100) : 0;
     const occupancyColor =
       occupancyPct >= 80 ? COLORS.error : occupancyPct >= 50 ? COLORS.accent : COLORS.success;
 

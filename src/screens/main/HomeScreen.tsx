@@ -255,7 +255,9 @@ export function HomeScreen() {
             </TouchableOpacity>
           </View>
           {upcomingEvents.map((event) => {
-            const date = new Date(event.startDate);
+            const raw = (event as any).start_date ?? (event as any).date ?? event.startDate;
+            const date = raw ? new Date(raw) : null;
+            const validDate = date && !isNaN(date.getTime());
             return (
               <TouchableOpacity
                 key={event.id}
@@ -265,11 +267,9 @@ export function HomeScreen() {
               >
                 <View style={styles.eventDate}>
                   <Text style={styles.eventMonth}>
-                    {date
-                      .toLocaleString("en", { month: "short" })
-                      .toUpperCase()}
+                    {validDate ? date!.toLocaleString("en", { month: "short" }).toUpperCase() : '—'}
                   </Text>
-                  <Text style={styles.eventDay}>{date.getDate()}</Text>
+                  <Text style={styles.eventDay}>{validDate ? date!.getDate() : '?'}</Text>
                 </View>
                 <View style={styles.eventInfo}>
                   <Text style={styles.eventTitle} numberOfLines={1}>

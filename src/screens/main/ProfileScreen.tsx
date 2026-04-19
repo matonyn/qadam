@@ -74,7 +74,7 @@ export function ProfileScreen() {
         <View style={styles.statsRow}>
           <StatCard label={t.profile.gpa} value={plan ? plan.gpa.toFixed(2) : '—'} icon="trophy-outline" color={COLORS.primary} />
           <StatCard label={t.profile.credits} value={plan ? `${plan.creditsCompleted}` : '—'} icon="bookmark-outline" color={COLORS.secondary} />
-          <StatCard label={t.profile.major} value={plan ? plan.major.split(' ')[0] : '—'} icon="school-outline" color={COLORS.accent} />
+          <StatCard label={t.profile.major} value={plan ? (plan.major ?? '').split(' ')[0] || '—' : '—'} icon="school-outline" color={COLORS.accent} />
         </View>
 
         {/* Privacy */}
