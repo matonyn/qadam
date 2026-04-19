@@ -64,6 +64,7 @@ export function ReviewsScreen({ navigation }: Props) {
   };
 
   const user = useAuthStore((state) => state.user);
+  const anonymousMode = useAuthStore((state) => state.settings.privacy.anonymousMode);
   const [typeFilter, setTypeFilter] = useState<TargetType>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -101,6 +102,7 @@ export function ReviewsScreen({ navigation }: Props) {
         targetName: newTarget,
         rating: newRating,
         comment: newComment.trim(),
+        anonymous: anonymousMode,
       });
       setReviews([res.data, ...reviews]);
       setShowAddModal(false);

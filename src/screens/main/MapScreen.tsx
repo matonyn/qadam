@@ -24,6 +24,7 @@ import { mapsApi, routingApi } from '../../services/api';
 import { tokenManager } from '../../services/tokenManager';
 import { useColors, SPACING, FONT_SIZE, BORDER_RADIUS, SHADOWS } from '../../constants/theme';
 import { useTranslation } from '../../i18n';
+import { useAuthStore } from '../../stores/authStore';
 
 // NU campus center (Astana, Kazakhstan)
 const CAMPUS_REGION = {
@@ -100,18 +101,23 @@ export function MapScreen() {
     longitude: number;
   } | null>(null);
   const [usedCampusFallbackStart, setUsedCampusFallbackStart] = useState(false);
+  const shareLocation = useAuthStore((state) => state.settings.privacy.shareLocation);
 
   useEffect(() => {
     mapsApi.getBuildings()
       .then((res) => setBuildings(res.data ?? []))
       .catch(console.error);
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-    })();
-  }, []);
+    if (shareLocation) {
+      (async () => {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      })();
+    } else {
+      setUserLocation(null);
+    }
+  }, [shareLocation]);
 
   const openExternalMaps = useCallback(async (lat: number, lng: number, name: string) => {
     const twoGisApp = `dgis://2gis.ru/routeSearch/rsType/pedestrian/to/${lng},${lat}`;
@@ -342,7 +348,7 @@ export function MapScreen() {
         style={styles.map}
         provider={PROVIDER_DEFAULT}
         initialRegion={CAMPUS_REGION}
-        showsUserLocation
+        showsUserLocation={shareLocation}
         showsMyLocationButton={false}
       >
         {buildings.map((building) => (
@@ -438,13 +444,15 @@ export function MapScreen() {
                 </TouchableOpacity>
               ) : null}
             </View>
-            <TouchableOpacity
-              style={styles.locationBtn}
-              onPress={goToMyLocation}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="locate" size={20} color={COLORS.primary} />
-            </TouchableOpacity>
+            {shareLocation && (
+              <TouchableOpacity
+                style={styles.locationBtn}
+                onPress={goToMyLocation}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="locate" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {((planFocus === 'from' && qFrom.length > 0) || (planFocus === 'to' && qTo.length > 0)) ? (

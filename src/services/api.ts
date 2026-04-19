@@ -42,7 +42,7 @@ function resolveApiBaseUrl(): string {
   const origin = raw
     ? raw.replace(/\/+$/, '')
     : `${defaultDevApiOrigin().replace(/\/+$/, '')}`;
-  return origin.endsWith('/api/v1') ? origin : `${origin}/api/v1`;
+  return origin;
 }
 
 export const API_BASE_URL = resolveApiBaseUrl();
