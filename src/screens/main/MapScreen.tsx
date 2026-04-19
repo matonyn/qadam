@@ -330,11 +330,11 @@ export function MapScreen() {
   const filteredFrom = buildings.filter(
     (b) =>
       b.name.toLowerCase().includes(qFrom) ||
-      b.shortName.toLowerCase().includes(qFrom),
+      (b.shortName ?? '').toLowerCase().includes(qFrom),
   );
   const filteredTo = buildings.filter(
     (b) =>
-      b.name.toLowerCase().includes(qTo) || b.shortName.toLowerCase().includes(qTo),
+      b.name.toLowerCase().includes(qTo) || (b.shortName ?? '').toLowerCase().includes(qTo),
   );
   const filteredBuildings =
     qTo.length > 0
