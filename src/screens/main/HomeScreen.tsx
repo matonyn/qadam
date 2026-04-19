@@ -42,7 +42,7 @@ export function HomeScreen() {
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
-    Promise.all([
+    Promise.allSettled([
       academicApi.getAcademicPlan(),
       academicApi.getSchedule(today),
       eventsApi.getEvents(),
@@ -50,24 +50,25 @@ export function HomeScreen() {
       discountsApi.getDiscounts(),
     ])
       .then(([planRes, scheduleRes, eventsRes, roomsRes, discountsRes]) => {
-        setPlan(planRes.data);
-        setUpcomingClasses(
-          (scheduleRes.data ?? []).flatMap((course: any, idx: number) =>
-            (course.schedule ?? []).map((sched: any) => ({
-              id: `${course.id}-${sched.day}`,
-              title: `${course.code} – ${course.name}`,
-              startTime: sched.startTime,
-              endTime: sched.endTime,
-              location: `Room ${sched.room}`,
-              color: COURSE_COLORS[idx % COURSE_COLORS.length],
-            }))
-          ).slice(0, 2),
-        );
-        setUpcomingEvents((eventsRes.data ?? []).slice(0, 2));
-        setAvailableRooms((roomsRes.data ?? []).length);
-        setActiveDiscounts((discountsRes.data ?? []).length);
+        if (planRes.status === 'fulfilled') setPlan(planRes.value.data);
+        if (scheduleRes.status === 'fulfilled') {
+          setUpcomingClasses(
+            (scheduleRes.value.data ?? []).flatMap((course: any, idx: number) =>
+              (course.schedule ?? []).map((sched: any) => ({
+                id: `${course.id}-${sched.day}`,
+                title: `${course.code} – ${course.name}`,
+                startTime: sched.startTime,
+                endTime: sched.endTime,
+                location: `Room ${sched.room}`,
+                color: COURSE_COLORS[idx % COURSE_COLORS.length],
+              }))
+            ).slice(0, 2),
+          );
+        }
+        if (eventsRes.status === 'fulfilled') setUpcomingEvents((eventsRes.value.data ?? []).slice(0, 2));
+        if (roomsRes.status === 'fulfilled') setAvailableRooms((roomsRes.value.data ?? []).length);
+        if (discountsRes.status === 'fulfilled') setActiveDiscounts((discountsRes.value.data ?? []).length);
       })
-      .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
